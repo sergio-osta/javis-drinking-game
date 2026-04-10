@@ -1,0 +1,2393 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Javi's Drinking Game - Multijugador</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a1a;
+    --card: #16162a;
+    --accent: #ff2d78;
+    --accent2: #7b2dff;
+    --neon: #00f0ff;
+    --gold: #ffd700;
+    --green: #00e676;
+    --text: #f0f0f0;
+    --muted: #8888aa;
+    --radius: 16px;
+  }
+
+  body {
+    font-family: 'Poppins', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ---- HEADER BAR ---- */
+  .header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px;
+    background: rgba(10,10,26,0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .header .logo { font-weight: 900; font-size: 1.1rem; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; cursor: pointer; }
+  .header-info { display: flex; gap: 10px; align-items: center; }
+  .room-badge {
+    background: rgba(0,240,255,0.12); border: 1px solid rgba(0,240,255,0.3);
+    padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; color: var(--neon);
+    letter-spacing: 0.1em;
+  }
+  .player-count-badge {
+    background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.3);
+    padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; color: var(--green);
+  }
+
+  /* ---- SCREENS ---- */
+  .screen { display: none; padding-top: 72px; min-height: 100dvh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ---- LANDING SCREEN ---- */
+  #landing-screen {
+    align-items: center; justify-content: center; text-align: center; padding: 72px 24px 40px;
+    background: radial-gradient(ellipse at 50% 30%, rgba(123,45,255,0.15) 0%, transparent 70%),
+                radial-gradient(ellipse at 20% 80%, rgba(255,45,120,0.1) 0%, transparent 50%);
+  }
+  .hero-photo {
+    width: 140px; height: 140px; border-radius: 50%; object-fit: cover; object-position: center top;
+    margin-bottom: 12px; border: 3px solid var(--accent);
+    box-shadow: 0 0 40px rgba(255,45,120,0.3), 0 0 80px rgba(123,45,255,0.15);
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+  .hero-title { font-size: 2.2rem; font-weight: 900; line-height: 1.1; margin-bottom: 4px; }
+  .hero-title .accent { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 32px; }
+  .hero-sub strong { color: var(--neon); }
+
+  .landing-actions { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 360px; }
+
+  .name-input-group { width: 100%; margin-bottom: 8px; }
+  .name-input-group label { display: block; color: var(--muted); font-size: 0.8rem; margin-bottom: 6px; font-weight: 600; }
+  .text-input {
+    width: 100%; padding: 14px 18px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04); color: var(--text); font-family: inherit; font-size: 1rem;
+    font-weight: 600; text-align: center; outline: none; transition: border-color 0.2s;
+  }
+  .text-input:focus { border-color: var(--neon); }
+  .text-input::placeholder { color: var(--muted); font-weight: 400; }
+
+  .big-btn {
+    padding: 16px 24px; border: none; border-radius: 14px;
+    font-family: inherit; font-size: 1.05rem; font-weight: 700; cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s; width: 100%;
+  }
+  .big-btn:active { transform: scale(0.97); }
+  .big-btn.primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff;
+    box-shadow: 0 4px 24px rgba(255,45,120,0.3);
+  }
+  .big-btn.secondary {
+    background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid rgba(255,255,255,0.1);
+  }
+  .big-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+  .divider { display: flex; align-items: center; gap: 12px; width: 100%; color: var(--muted); font-size: 0.8rem; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.08); }
+
+  .join-row { display: flex; gap: 10px; }
+  .join-row .text-input { flex: 1; text-transform: uppercase; letter-spacing: 0.2em; font-size: 1.3rem; }
+  .join-row .big-btn { width: auto; padding: 14px 24px; }
+
+  .status-msg { color: var(--muted); font-size: 0.85rem; margin-top: 12px; min-height: 1.5em; }
+  .status-msg.error { color: var(--accent); }
+
+  /* ---- LOBBY SCREEN ---- */
+  #lobby-screen {
+    align-items: center; padding: 72px 24px 40px; text-align: center;
+    background: radial-gradient(ellipse at 50% 20%, rgba(123,45,255,0.1) 0%, transparent 60%);
+  }
+  .lobby-code-display {
+    font-size: 3.5rem; font-weight: 900; letter-spacing: 0.3em;
+    background: linear-gradient(135deg, var(--neon), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin: 12px 0 4px;
+  }
+  .lobby-code-label { color: var(--muted); font-size: 0.85rem; margin-bottom: 20px; }
+  .copy-link-btn {
+    background: rgba(0,240,255,0.1); border: 1px solid rgba(0,240,255,0.3); color: var(--neon);
+    padding: 8px 20px; border-radius: 20px; font-family: inherit; font-size: 0.82rem;
+    font-weight: 600; cursor: pointer; margin-bottom: 28px; transition: all 0.2s;
+  }
+  .copy-link-btn:active { transform: scale(0.95); }
+
+  .players-list { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px; }
+  .player-row {
+    display: flex; align-items: center; gap: 12px; padding: 12px 18px;
+    background: var(--card); border-radius: 12px; border: 1px solid rgba(255,255,255,0.06);
+    animation: cardIn 0.3s cubic-bezier(0.16,1,0.3,1);
+  }
+  @keyframes cardIn { from { opacity:0; transform: translateY(20px) scale(0.96); } to { opacity:1; transform: none; } }
+  .player-avatar {
+    width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; font-weight: 900; color: #fff;
+  }
+  .player-name { font-weight: 700; font-size: 1rem; flex: 1; text-align: left; }
+  .player-host-tag { font-size: 0.7rem; font-weight: 700; color: var(--gold); background: rgba(255,215,0,0.15); padding: 2px 8px; border-radius: 8px; }
+  .player-disconnected { color: var(--muted); font-size: 0.75rem; font-style: italic; }
+  .waiting-msg { color: var(--muted); font-size: 0.9rem; margin-bottom: 20px; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
+
+  /* ---- MODE SELECT (host) ---- */
+  #mode-screen {
+    align-items: center; padding: 72px 16px 40px;
+    background: radial-gradient(ellipse at 50% 30%, rgba(123,45,255,0.1) 0%, transparent 60%);
+  }
+  .mode-title { font-size: 1.5rem; font-weight: 900; margin-bottom: 4px; text-align: center; }
+  .mode-subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 24px; text-align: center; }
+  .mode-grid { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 440px; }
+  .mode-card {
+    background: var(--card); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius); padding: 18px; text-align: left; cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .mode-card:hover, .mode-card:active {
+    transform: scale(1.02); border-color: var(--accent);
+    box-shadow: 0 0 30px rgba(255,45,120,0.15);
+  }
+  .mode-card .mode-icon { font-size: 1.4rem; margin-bottom: 6px; }
+  .mode-card .mode-name { font-weight: 700; font-size: 1.05rem; margin-bottom: 3px; }
+  .mode-card .mode-desc { color: var(--muted); font-size: 0.78rem; line-height: 1.4; }
+  .mode-card .mode-badge {
+    position: absolute; top: 10px; right: 10px;
+    font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 8px;
+    background: rgba(255,45,120,0.2); color: var(--accent);
+  }
+  .mode-card .mode-badge.new { background: rgba(0,240,255,0.15); color: var(--neon); }
+
+  /* ---- GAME SCREEN ---- */
+  #game-screen { padding: 72px 16px 24px; align-items: center; }
+  .round-info { color: var(--muted); font-size: 0.8rem; margin-bottom: 10px; font-weight: 600; text-align: center; }
+  .game-card {
+    width: 100%; max-width: 500px;
+    background: var(--card); border-radius: var(--radius);
+    border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden; position: relative;
+    animation: cardIn 0.4s cubic-bezier(0.16,1,0.3,1);
+  }
+  .card-image {
+    width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block;
+    background: #1a1a2e;
+  }
+  .card-body { padding: 18px; }
+  .card-review {
+    font-size: 0.9rem; line-height: 1.5; color: var(--text);
+    margin-bottom: 14px; max-height: 140px; overflow-y: auto;
+    font-style: italic; position: relative;
+  }
+  .card-review::before { content: '\201C'; font-size: 2rem; color: var(--accent); line-height: 1; margin-right: 4px; vertical-align: -6px; }
+  .card-place-name { font-weight: 700; font-size: 1rem; margin-bottom: 4px; }
+  .card-address { color: var(--muted); font-size: 0.78rem; }
+  .card-stars { margin-top: 8px; }
+  .card-stars .star { font-size: 1.3rem; margin-right: 2px; }
+  .card-stars .star.filled { color: var(--gold); }
+  .card-stars .star.empty { color: #333; }
+  .card-prompt {
+    text-align: center; color: var(--neon); font-weight: 700; font-size: 0.88rem;
+    margin: 14px 0 10px; letter-spacing: 0.03em;
+  }
+
+  /* ---- OPTIONS ---- */
+  .options { width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+  .opt-btn {
+    width: 100%; padding: 15px 18px; border: 2px solid rgba(255,255,255,0.08);
+    border-radius: 12px; background: rgba(255,255,255,0.03);
+    color: var(--text); font-family: inherit; font-size: 0.95rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; text-align: left;
+  }
+  .opt-btn:hover { border-color: var(--neon); background: rgba(0,240,255,0.05); }
+  .opt-btn:active { transform: scale(0.98); }
+  .opt-btn.correct { border-color: var(--green); background: rgba(0,230,118,0.15); color: var(--green); }
+  .opt-btn.wrong { border-color: var(--accent); background: rgba(255,45,120,0.15); color: var(--accent); }
+  .opt-btn.selected { border-color: var(--neon); background: rgba(0,240,255,0.1); }
+  .opt-btn:disabled { cursor: default; opacity: 0.85; }
+
+  /* ---- STAR PICKER ---- */
+  .star-picker { display: flex; gap: 8px; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
+  .star-pick {
+    width: 56px; height: 56px; border-radius: 14px; border: 2px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; font-weight: 900; color: var(--gold); cursor: pointer;
+    transition: all 0.2s; font-family: inherit;
+  }
+  .star-pick:hover { border-color: var(--gold); background: rgba(255,215,0,0.1); transform: scale(1.08); }
+  .star-pick:active { transform: scale(0.95); }
+  .star-pick.correct { border-color: var(--green); background: rgba(0,230,118,0.2); color: var(--green); }
+  .star-pick.wrong { border-color: var(--accent); background: rgba(255,45,120,0.2); color: var(--accent); }
+  .star-pick.reveal { border-color: var(--gold); background: rgba(255,215,0,0.15); }
+  .star-pick.selected { border-color: var(--neon); background: rgba(0,240,255,0.15); }
+  .star-pick:disabled { cursor: default; }
+
+  /* ---- TWO-SIDE CARD (higher/lower) ---- */
+  .dual-cards { display: flex; gap: 12px; width: 100%; max-width: 500px; margin-top: 10px; }
+  .dual-cards .side-card {
+    flex: 1; background: var(--card); border-radius: var(--radius); border: 2px solid rgba(255,255,255,0.06);
+    overflow: hidden; cursor: pointer; transition: all 0.2s; min-width: 0;
+  }
+  .dual-cards .side-card:hover { border-color: var(--neon); }
+  .dual-cards .side-card:active { transform: scale(0.98); }
+  .dual-cards .side-card.correct { border-color: var(--green); box-shadow: 0 0 20px rgba(0,230,118,0.2); }
+  .dual-cards .side-card.wrong { border-color: var(--accent); }
+  .dual-cards .side-card.selected { border-color: var(--neon); box-shadow: 0 0 15px rgba(0,240,255,0.2); }
+  .dual-cards .side-card .side-img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+  .dual-cards .side-card .side-body { padding: 10px; }
+  .dual-cards .side-card .side-name { font-weight: 700; font-size: 0.82rem; line-height: 1.3; }
+  .dual-cards .side-card .side-stars { margin-top: 4px; font-size: 0.9rem; }
+
+  /* ---- BINGO CARD ---- */
+  .bingo-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+    width: 100%; max-width: 400px; margin-top: 14px;
+  }
+  .bingo-cell {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    background: var(--card); border: 2px solid rgba(255,255,255,0.08); border-radius: 10px;
+    font-size: 0.65rem; font-weight: 600; text-align: center; padding: 4px;
+    cursor: pointer; transition: all 0.2s; line-height: 1.2; word-break: break-word;
+  }
+  .bingo-cell:hover { border-color: var(--neon); }
+  .bingo-cell.marked { background: rgba(255,45,120,0.2); border-color: var(--accent); color: var(--accent); }
+  .bingo-cell.bingo-win { background: rgba(0,230,118,0.25); border-color: var(--green); color: var(--green); animation: bingoFlash 0.5s ease; }
+  @keyframes bingoFlash { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+  .bingo-claim-btn {
+    margin-top: 14px; padding: 14px 32px; border: none; border-radius: 30px;
+    background: linear-gradient(135deg, var(--gold), #ff9800); color: #000;
+    font-family: inherit; font-size: 1.1rem; font-weight: 900; cursor: pointer;
+    transition: transform 0.2s; box-shadow: 0 4px 20px rgba(255,215,0,0.3);
+  }
+  .bingo-claim-btn:active { transform: scale(0.95); }
+
+  /* ---- TRIBUNAL ---- */
+  .tribunal-card {
+    width: 100%; max-width: 500px; background: var(--card); border-radius: var(--radius);
+    border: 1px solid rgba(255,45,120,0.2); padding: 20px; text-align: center;
+    animation: cardIn 0.4s cubic-bezier(0.16,1,0.3,1);
+  }
+  .tribunal-role {
+    font-size: 0.85rem; font-weight: 700; padding: 6px 16px; border-radius: 20px;
+    display: inline-block; margin-bottom: 12px;
+  }
+  .tribunal-role.lawyer { background: rgba(0,240,255,0.15); color: var(--neon); }
+  .tribunal-role.jury { background: rgba(255,215,0,0.15); color: var(--gold); }
+  .tribunal-timer {
+    font-size: 2.5rem; font-weight: 900; color: var(--accent); margin: 10px 0;
+  }
+  .vote-buttons { display: flex; gap: 12px; margin-top: 16px; justify-content: center; }
+  .vote-btn {
+    flex: 1; max-width: 180px; padding: 16px; border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 14px; background: rgba(255,255,255,0.03); color: var(--text);
+    font-family: inherit; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
+  }
+  .vote-btn:hover { transform: scale(1.03); }
+  .vote-btn.guilty { border-color: rgba(255,45,120,0.3); }
+  .vote-btn.guilty:hover, .vote-btn.guilty.selected { border-color: var(--accent); background: rgba(255,45,120,0.15); color: var(--accent); }
+  .vote-btn.innocent { border-color: rgba(0,230,118,0.3); }
+  .vote-btn.innocent:hover, .vote-btn.innocent.selected { border-color: var(--green); background: rgba(0,230,118,0.15); color: var(--green); }
+  .vote-btn:disabled { cursor: default; opacity: 0.7; }
+
+  /* ---- RESULT BANNER ---- */
+  .result-banner {
+    margin-top: 14px; padding: 14px 18px; border-radius: 12px; text-align: center;
+    font-weight: 700; font-size: 0.95rem; width: 100%; max-width: 500px;
+    animation: bannerIn 0.35s cubic-bezier(0.16,1,0.3,1);
+  }
+  @keyframes bannerIn { from { opacity:0; transform: scale(0.9); } to { opacity:1; transform: none; } }
+  .result-banner.success { background: rgba(0,230,118,0.15); color: var(--green); border: 1px solid rgba(0,230,118,0.3); }
+  .result-banner.fail { background: rgba(255,45,120,0.15); color: var(--accent); border: 1px solid rgba(255,45,120,0.3); }
+  .result-banner.neutral { background: rgba(0,240,255,0.1); color: var(--neon); border: 1px solid rgba(0,240,255,0.2); }
+  .result-banner .result-detail { font-weight: 400; font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
+
+  .next-btn {
+    margin-top: 14px; padding: 14px 36px; border: none; border-radius: 30px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff; font-family: inherit; font-size: 1rem; font-weight: 700;
+    cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 24px rgba(255,45,120,0.3);
+  }
+  .next-btn:hover { transform: scale(1.04); }
+  .next-btn:active { transform: scale(0.97); }
+
+  /* ---- SCOREBOARD ---- */
+  #scoreboard-screen {
+    align-items: center; padding: 72px 24px 40px; text-align: center;
+    background: radial-gradient(ellipse at 50% 30%, rgba(123,45,255,0.12) 0%, transparent 60%);
+  }
+  .sb-title { font-size: 1.8rem; font-weight: 900; margin-bottom: 4px; }
+  .sb-subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 24px; }
+  .sb-list { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px; }
+  .sb-row {
+    display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+    background: var(--card); border-radius: 12px; border: 1px solid rgba(255,255,255,0.06);
+    animation: cardIn 0.3s cubic-bezier(0.16,1,0.3,1);
+  }
+  .sb-row.first { border-color: rgba(255,215,0,0.3); background: rgba(255,215,0,0.06); }
+  .sb-rank { font-size: 1.3rem; font-weight: 900; width: 36px; text-align: center; }
+  .sb-row.first .sb-rank { color: var(--gold); }
+  .sb-player-info { flex: 1; text-align: left; }
+  .sb-player-name { font-weight: 700; font-size: 0.95rem; }
+  .sb-player-drinks { font-size: 0.75rem; color: var(--muted); }
+  .sb-score { font-weight: 900; font-size: 1.2rem; color: var(--green); }
+
+  /* ---- DRINK OVERLAY ---- */
+  .drink-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    background: rgba(10,10,26,0.88); backdrop-filter: blur(8px);
+    animation: drinkIn 0.3s ease-out; pointer-events: none;
+  }
+  @keyframes drinkIn { from { opacity: 0; } to { opacity: 1; } }
+  .drink-overlay .drink-text {
+    font-size: 3.5rem; font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), #ff6b35);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    animation: drinkShake 0.5s ease-in-out;
+  }
+  .drink-overlay .drink-emoji { font-size: 4rem; margin-bottom: 12px; animation: drinkBounce 0.6s ease; }
+  @keyframes drinkShake {
+    0%,100%{transform:translateX(0) rotate(0)} 15%{transform:translateX(-12px) rotate(-4deg)}
+    30%{transform:translateX(10px) rotate(3deg)} 45%{transform:translateX(-8px) rotate(-2deg)}
+    60%{transform:translateX(6px) rotate(1deg)} 75%{transform:translateX(-3px) rotate(0)}
+  }
+  @keyframes drinkBounce { 0%{transform:scale(0)} 50%{transform:scale(1.3)} 100%{transform:scale(1)} }
+
+  /* ---- CONFETTI ---- */
+  .confetti-container { position: fixed; inset: 0; z-index: 200; pointer-events: none; overflow: hidden; }
+  .confetti-piece {
+    position: absolute; width: 10px; height: 10px; top: -20px;
+    animation: confettiFall linear forwards;
+  }
+  @keyframes confettiFall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* ---- ANSWER COUNT INDICATOR ---- */
+  .answer-tracker {
+    display: flex; gap: 6px; align-items: center; justify-content: center; margin-top: 10px;
+    color: var(--muted); font-size: 0.8rem; font-weight: 600;
+  }
+  .answer-dot {
+    width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.1);
+    transition: background 0.3s;
+  }
+  .answer-dot.answered { background: var(--neon); }
+
+  /* ---- IMAGE PLACEHOLDER ---- */
+  .img-placeholder {
+    width: 100%; aspect-ratio: 4/3; background: linear-gradient(135deg, #1a1a2e, #252545);
+    display: flex; align-items: center; justify-content: center; font-size: 2rem; color: var(--muted);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+  /* Mobile adjustments */
+  @media (max-width: 400px) {
+    .hero-title { font-size: 1.9rem; }
+    .lobby-code-display { font-size: 2.8rem; }
+    .drink-overlay .drink-text { font-size: 2.8rem; }
+    .card-body { padding: 14px; }
+    .star-pick { width: 48px; height: 48px; font-size: 1.1rem; }
+    .bingo-cell { font-size: 0.58rem; }
+    .dual-cards { gap: 8px; }
+  }
+
+  /* Host-TV optimized */
+  @media (min-width: 800px) {
+    .game-card { max-width: 600px; }
+    .options { max-width: 600px; }
+    .dual-cards { max-width: 700px; }
+    .card-review { font-size: 1.05rem; max-height: 180px; }
+    .card-prompt { font-size: 1rem; }
+    .round-info { font-size: 0.9rem; }
+  }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header" id="header">
+  <div class="logo" onclick="location.reload()">REVIEW ROULETTE</div>
+  <div class="header-info" id="headerInfo"></div>
+</div>
+
+<!-- LANDING SCREEN -->
+<div class="screen active" id="landing-screen">
+  <img src="javi-negro-wp.png" alt="Javier" class="hero-photo" onerror="this.style.display='none'">
+  <h1 class="hero-title">
+    <span class="accent">Javi's</span><br>Review Roulette
+  </h1>
+  <p class="hero-sub">
+    <strong>Multijugador</strong> &middot; 191 resenas &middot; 7 modos de juego
+  </p>
+  <div class="landing-actions">
+    <div class="name-input-group">
+      <label>Tu nombre</label>
+      <input class="text-input" id="playerNameInput" type="text" placeholder="Escribe tu nombre..." maxlength="16" autocomplete="off">
+    </div>
+    <button class="big-btn primary" id="createRoomBtn" onclick="createRoom()">Crear Sala</button>
+    <div class="divider">o unirse a una sala</div>
+    <div class="join-row">
+      <input class="text-input" id="roomCodeInput" type="text" placeholder="XXXX" maxlength="4" autocomplete="off">
+      <button class="big-btn primary" id="joinRoomBtn" onclick="joinRoom()" style="font-size:0.9rem;">Unirse</button>
+    </div>
+    <div class="status-msg" id="statusMsg"></div>
+  </div>
+</div>
+
+<!-- LOBBY SCREEN -->
+<div class="screen" id="lobby-screen"></div>
+
+<!-- MODE SELECT SCREEN (host only) -->
+<div class="screen" id="mode-screen"></div>
+
+<!-- GAME SCREEN -->
+<div class="screen" id="game-screen"></div>
+
+<!-- SCOREBOARD SCREEN -->
+<div class="screen" id="scoreboard-screen"></div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+// ============================================
+// STATE
+// ============================================
+let allReviews = [];
+let peer = null;
+let isHost = false;
+let roomCode = '';
+let myName = '';
+let myPeerId = '';
+
+// Host state
+let connections = {}; // peerId -> {conn, name, score, drinks, disconnected, bingoCard}
+let hostPlayers = []; // ordered array of {peerId, name, score, drinks, disconnected, bingoCard}
+let gameMode = '';
+let gameReviews = [];
+let currentRound = 0;
+let totalRounds = 10;
+let roundAnswers = {}; // peerId -> answer
+let roundTimestamps = {}; // peerId -> timestamp
+let roundActive = false;
+let bingoReviewIndex = 0;
+let tribunalLawyer = '';
+let tribunalTimer = null;
+
+// Player state
+let hostConn = null;
+let myScore = 0;
+let myDrinks = 0;
+let myBingoCard = null;
+let playerAnswered = false;
+
+// ============================================
+// LOAD DATA
+// ============================================
+async function loadData() {
+  try {
+    const res = await fetch('javier-reviews.json');
+    const data = await res.json();
+    allReviews = data.reviews || data;
+  } catch (e) {
+    console.error('Error cargando resenas:', e);
+  }
+}
+loadData();
+
+// ============================================
+// HELPERS
+// ============================================
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function generateRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function extractCountry(address) {
+  if (!address) return 'Desconocido';
+  const parts = address.split(',').map(s => s.trim());
+  return parts[parts.length - 1] || 'Desconocido';
+}
+
+function extractCity(address) {
+  if (!address) return 'Desconocido';
+  const parts = address.split(',').map(s => s.trim());
+  for (const p of parts) {
+    if (p.length > 2 && !/^\d+$/.test(p) && !/^\d{4,}/.test(p)) return p;
+  }
+  return parts[0] || 'Desconocido';
+}
+
+function getCountryCity(address) {
+  const country = extractCountry(address);
+  const city = extractCity(address);
+  if (city === country) return country;
+  return `${city}, ${country}`;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function escapeAttr(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function setStatus(msg, isError = false) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = 'status-msg' + (isError ? ' error' : '');
+}
+
+const PLAYER_COLORS = ['#ff2d78','#7b2dff','#00f0ff','#ffd700','#00e676','#ff6b35','#ff4ecb','#2dd4ff','#ff5252','#69f0ae'];
+function playerColor(idx) { return PLAYER_COLORS[idx % PLAYER_COLORS.length]; }
+
+function imgErrorHandler(fallback) {
+  return `onerror="this.outerHTML='<div class=img-placeholder>${fallback}</div>'"`;
+}
+
+// Prioritize interesting reviews
+function prioritizeReviews(pool) {
+  const italian = pool.filter(r => r.address && /Ital/i.test(r.address));
+  const withPhotos = pool.filter(r => r.review_photos && r.review_photos.length > 0 && !(r.address && /Ital/i.test(r.address)));
+  const rest = pool.filter(r => !(r.review_photos && r.review_photos.length > 0) && !(r.address && /Ital/i.test(r.address)));
+  return [...shuffle(italian), ...shuffle(withPhotos), ...shuffle(rest)];
+}
+
+// ============================================
+// PEER CONNECTION
+// ============================================
+const PEER_PREFIX = 'javier-review-';
+
+function createPeer(id) {
+  return new Promise((resolve, reject) => {
+    const p = new Peer(id, {
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      }
+    });
+    p.on('open', () => resolve(p));
+    p.on('error', (err) => {
+      console.error('Peer error:', err);
+      if (err.type === 'unavailable-id') {
+        reject(new Error('Sala ya existe. Intenta de nuevo.'));
+      } else if (err.type === 'peer-unavailable') {
+        reject(new Error('Sala no encontrada. Verifica el codigo.'));
+      } else {
+        reject(err);
+      }
+    });
+  });
+}
+
+// ============================================
+// HOST: CREATE ROOM
+// ============================================
+async function createRoom() {
+  myName = document.getElementById('playerNameInput').value.trim();
+  if (!myName) { setStatus('Escribe tu nombre primero', true); return; }
+  if (allReviews.length === 0) { setStatus('Cargando datos...', true); await loadData(); }
+
+  setStatus('Creando sala...');
+  document.getElementById('createRoomBtn').disabled = true;
+
+  roomCode = generateRoomCode();
+  isHost = true;
+
+  try {
+    peer = await createPeer(PEER_PREFIX + roomCode);
+    myPeerId = peer.id;
+  } catch (e) {
+    setStatus(e.message, true);
+    document.getElementById('createRoomBtn').disabled = false;
+    // Try again with new code
+    roomCode = generateRoomCode();
+    try {
+      peer = await createPeer(PEER_PREFIX + roomCode);
+      myPeerId = peer.id;
+    } catch (e2) {
+      setStatus('Error al crear sala: ' + e2.message, true);
+      document.getElementById('createRoomBtn').disabled = false;
+      return;
+    }
+  }
+
+  // Add host as first player
+  hostPlayers = [{ peerId: myPeerId, name: myName, score: 0, drinks: 0, disconnected: false, bingoCard: null }];
+
+  // Listen for incoming connections
+  peer.on('connection', (conn) => {
+    conn.on('open', () => {
+      // Wait for join message
+    });
+    conn.on('data', (data) => handleHostMessage(conn, data));
+    conn.on('close', () => handlePlayerDisconnect(conn.peer));
+    conn.on('error', () => handlePlayerDisconnect(conn.peer));
+  });
+
+  updateHeaderInfo();
+  renderLobby();
+}
+
+function handleHostMessage(conn, msg) {
+  if (msg.type === 'join') {
+    const pid = conn.peer;
+    connections[pid] = conn;
+    const exists = hostPlayers.find(p => p.peerId === pid);
+    if (exists) {
+      exists.disconnected = false;
+      exists.name = msg.name;
+    } else {
+      hostPlayers.push({ peerId: pid, name: msg.name, score: 0, drinks: 0, disconnected: false, bingoCard: null });
+    }
+    broadcastLobby();
+    renderLobby();
+  } else if (msg.type === 'answer') {
+    if (!roundActive) return;
+    const pid = conn.peer;
+    if (roundAnswers[pid] !== undefined) return; // already answered
+    roundAnswers[pid] = msg.answer;
+    roundTimestamps[pid] = Date.now();
+    broadcastAnswerCount();
+    checkAllAnswered();
+  } else if (msg.type === 'bingo-claim') {
+    handleBingoClaim(conn.peer);
+  } else if (msg.type === 'tribunal-vote') {
+    if (roundAnswers[conn.peer] !== undefined) return;
+    roundAnswers[conn.peer] = msg.vote;
+    broadcastAnswerCount();
+    checkAllAnswered();
+  }
+}
+
+function handlePlayerDisconnect(pid) {
+  const p = hostPlayers.find(pl => pl.peerId === pid);
+  if (p) p.disconnected = true;
+  broadcastLobby();
+  renderCurrentView();
+}
+
+function broadcastLobby() {
+  const playerList = hostPlayers.map(p => ({ name: p.name, score: p.score, drinks: p.drinks, disconnected: p.disconnected, peerId: p.peerId }));
+  broadcast({ type: 'lobby', players: playerList, roomCode });
+}
+
+function broadcast(msg) {
+  Object.values(connections).forEach(conn => {
+    try { conn.send(msg); } catch(e) { /* ignore */ }
+  });
+}
+
+function broadcastAnswerCount() {
+  const count = Object.keys(roundAnswers).length;
+  const total = hostPlayers.filter(p => !p.disconnected).length;
+  broadcast({ type: 'answer-count', count, total });
+  // Update host display too
+  updateAnswerDots(count, total);
+}
+
+function checkAllAnswered() {
+  const activePlayers = hostPlayers.filter(p => !p.disconnected);
+  // For tribunal, the lawyer doesn't vote
+  let expectedCount;
+  if (gameMode === 'tribunal') {
+    expectedCount = activePlayers.filter(p => p.peerId !== tribunalLawyer).length;
+  } else {
+    expectedCount = activePlayers.length;
+  }
+  // Host answer is counted in roundAnswers with myPeerId
+  if (Object.keys(roundAnswers).length >= expectedCount) {
+    if (gameMode !== 'bingo') {
+      resolveRound();
+    }
+  }
+}
+
+// ============================================
+// PLAYER: JOIN ROOM
+// ============================================
+async function joinRoom() {
+  myName = document.getElementById('playerNameInput').value.trim();
+  roomCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+  if (!myName) { setStatus('Escribe tu nombre primero', true); return; }
+  if (roomCode.length !== 4) { setStatus('El codigo debe tener 4 caracteres', true); return; }
+  if (allReviews.length === 0) { setStatus('Cargando datos...'); await loadData(); }
+
+  setStatus('Conectando...');
+  document.getElementById('joinRoomBtn').disabled = true;
+  isHost = false;
+
+  try {
+    peer = await createPeer(undefined); // random ID
+    myPeerId = peer.id;
+  } catch (e) {
+    setStatus('Error de conexion: ' + e.message, true);
+    document.getElementById('joinRoomBtn').disabled = false;
+    return;
+  }
+
+  try {
+    hostConn = peer.connect(PEER_PREFIX + roomCode, { reliable: true });
+  } catch(e) {
+    setStatus('No se pudo conectar a la sala', true);
+    document.getElementById('joinRoomBtn').disabled = false;
+    return;
+  }
+
+  const timeout = setTimeout(() => {
+    setStatus('Sala no encontrada o sin respuesta', true);
+    document.getElementById('joinRoomBtn').disabled = false;
+  }, 8000);
+
+  hostConn.on('open', () => {
+    clearTimeout(timeout);
+    hostConn.send({ type: 'join', name: myName });
+  });
+
+  hostConn.on('data', (data) => handlePlayerMessage(data));
+
+  hostConn.on('close', () => {
+    setStatus('Conexion perdida con el host', true);
+  });
+  hostConn.on('error', (err) => {
+    clearTimeout(timeout);
+    setStatus('Error: ' + err.message, true);
+    document.getElementById('joinRoomBtn').disabled = false;
+  });
+}
+
+function handlePlayerMessage(msg) {
+  switch (msg.type) {
+    case 'lobby':
+      renderPlayerLobby(msg.players);
+      break;
+    case 'game-start':
+      gameMode = msg.mode;
+      totalRounds = msg.totalRounds || 10;
+      currentRound = 0;
+      myScore = 0;
+      myDrinks = 0;
+      if (msg.bingoCard) myBingoCard = msg.bingoCard;
+      showScreen('game-screen');
+      renderPlayerWaiting();
+      break;
+    case 'round':
+      currentRound = msg.roundNum;
+      playerAnswered = false;
+      renderPlayerRound(msg);
+      break;
+    case 'reveal':
+      renderPlayerReveal(msg);
+      break;
+    case 'answer-count':
+      updateAnswerDots(msg.count, msg.total);
+      break;
+    case 'scores':
+      renderPlayerScoreboard(msg);
+      break;
+    case 'bingo-review':
+      renderPlayerBingoRound(msg);
+      break;
+    case 'bingo-result':
+      renderPlayerBingoResult(msg);
+      break;
+    case 'tribunal-assign':
+      renderPlayerTribunal(msg);
+      break;
+    case 'tribunal-vote-phase':
+      renderPlayerTribunalVote(msg);
+      break;
+    case 'tribunal-result':
+      renderPlayerTribunalResult(msg);
+      break;
+    case 'return-lobby':
+      showScreen('lobby-screen');
+      renderPlayerLobby(msg.players);
+      break;
+  }
+}
+
+function sendToHost(msg) {
+  if (hostConn && hostConn.open) {
+    hostConn.send(msg);
+  }
+}
+
+// ============================================
+// HEADER
+// ============================================
+function updateHeaderInfo() {
+  const hi = document.getElementById('headerInfo');
+  let html = '';
+  if (roomCode) html += `<div class="room-badge">${roomCode}</div>`;
+  if (hostPlayers.length > 0) {
+    const active = hostPlayers.filter(p => !p.disconnected).length;
+    html += `<div class="player-count-badge">${active} jugadores</div>`;
+  }
+  hi.innerHTML = html;
+}
+
+// ============================================
+// LOBBY RENDERING (HOST)
+// ============================================
+function renderLobby() {
+  showScreen('lobby-screen');
+  updateHeaderInfo();
+  const el = document.getElementById('lobby-screen');
+  el.innerHTML = `
+    <div class="lobby-code-label">CODIGO DE SALA</div>
+    <div class="lobby-code-display">${roomCode}</div>
+    <button class="copy-link-btn" onclick="copyLink()">Copiar Enlace</button>
+    <div class="players-list" id="lobbyPlayers"></div>
+    <div class="waiting-msg">Esperando jugadores...</div>
+    ${hostPlayers.length >= 1 ? `<button class="big-btn primary" style="max-width:300px;" onclick="showModeSelect()">Elegir Juego</button>` : ''}
+  `;
+  renderPlayerList('lobbyPlayers');
+}
+
+function renderPlayerList(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = hostPlayers.map((p, i) => `
+    <div class="player-row">
+      <div class="player-avatar" style="background:${playerColor(i)}">${p.name.charAt(0).toUpperCase()}</div>
+      <div class="player-name">${escapeHtml(p.name)} ${p.disconnected ? '<span class="player-disconnected">(desconectado)</span>' : ''}</div>
+      ${i === 0 ? '<span class="player-host-tag">HOST</span>' : ''}
+    </div>
+  `).join('');
+}
+
+function copyLink() {
+  const url = location.origin + location.pathname + '#' + roomCode;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.querySelector('.copy-link-btn');
+    btn.textContent = 'Copiado!';
+    setTimeout(() => btn.textContent = 'Copiar Enlace', 2000);
+  }).catch(() => {
+    prompt('Copia este enlace:', location.origin + location.pathname + '#' + roomCode);
+  });
+}
+
+// LOBBY RENDERING (PLAYER)
+function renderPlayerLobby(players) {
+  showScreen('lobby-screen');
+  const el = document.getElementById('lobby-screen');
+  const hi = document.getElementById('headerInfo');
+  hi.innerHTML = `<div class="room-badge">${roomCode}</div><div class="player-count-badge">${players.filter(p=>!p.disconnected).length} jugadores</div>`;
+
+  el.innerHTML = `
+    <div class="lobby-code-label">SALA</div>
+    <div class="lobby-code-display">${roomCode}</div>
+    <div class="players-list">${players.map((p, i) => `
+      <div class="player-row">
+        <div class="player-avatar" style="background:${playerColor(i)}">${p.name.charAt(0).toUpperCase()}</div>
+        <div class="player-name">${escapeHtml(p.name)} ${p.disconnected ? '<span class="player-disconnected">(desconectado)</span>' : ''}</div>
+        ${i === 0 ? '<span class="player-host-tag">HOST</span>' : ''}
+      </div>
+    `).join('')}</div>
+    <div class="waiting-msg">El host esta eligiendo el juego...</div>
+  `;
+}
+
+// ============================================
+// MODE SELECT (HOST)
+// ============================================
+function showModeSelect() {
+  showScreen('mode-screen');
+  const el = document.getElementById('mode-screen');
+  el.innerHTML = `
+    <div class="mode-title">Elige el Juego</div>
+    <div class="mode-subtitle">${hostPlayers.filter(p=>!p.disconnected).length} jugadores conectados</div>
+    <div class="mode-grid">
+      <div class="mode-card" onclick="startMultiplayerGame('swipe')">
+        <div class="mode-badge">CLASICO</div>
+        <div class="mode-icon">&#128203;</div>
+        <div class="mode-name">Swipe It</div>
+        <div class="mode-desc">Ve la resena y la foto, adivina el sitio. El mas rapido gana mas puntos.</div>
+      </div>
+      <div class="mode-card" onclick="startMultiplayerGame('rate')">
+        <div class="mode-badge">CLASICO</div>
+        <div class="mode-icon">&#11088;</div>
+        <div class="mode-name">Rate It</div>
+        <div class="mode-desc">Ve el sitio, adivina las estrellas. Exacto = 3pts, cerca = 1pt, lejos = BEBE.</div>
+      </div>
+      <div class="mode-card" onclick="startMultiplayerGame('where')">
+        <div class="mode-badge">34 FOTOS</div>
+        <div class="mode-icon">&#127758;</div>
+        <div class="mode-name">Donde Estaba?</div>
+        <div class="mode-desc">Ve la foto de Javier, adivina el pais. El primero en acertar gana mas.</div>
+      </div>
+      <div class="mode-card" onclick="startMultiplayerGame('higher-lower')">
+        <div class="mode-badge new">NUEVO</div>
+        <div class="mode-icon">&#9878;&#65039;</div>
+        <div class="mode-name">Mas o Menos</div>
+        <div class="mode-desc">Dos sitios: cual puntuo mas alto Javier? Fallo = BEBE.</div>
+      </div>
+      <div class="mode-card" onclick="startMultiplayerGame('closest')">
+        <div class="mode-badge new">NUEVO</div>
+        <div class="mode-icon">&#127919;</div>
+        <div class="mode-name">La Escala de Javier</div>
+        <div class="mode-desc">Adivina la nota exacta. El mas cercano gana 3pts, el mas lejano BEBE.</div>
+      </div>
+      <div class="mode-card" onclick="startMultiplayerGame('bingo')">
+        <div class="mode-badge new">NUEVO</div>
+        <div class="mode-icon">&#127183;</div>
+        <div class="mode-name">Javier Bingo</div>
+        <div class="mode-desc">Carton 4x4 con frases de Javier. Marca mientras se leen resenas. Primero en linea gana!</div>
+      </div>
+      <div class="mode-card" onclick="startMultiplayerGame('tribunal')">
+        <div class="mode-badge new">NUEVO</div>
+        <div class="mode-icon">&#9878;&#65039;</div>
+        <div class="mode-name">El Tribunal de Javier</div>
+        <div class="mode-desc">Resenas de 1 estrella. Un abogado defiende el restaurante. El jurado decide!</div>
+      </div>
+    </div>
+    <button class="big-btn secondary" style="max-width:300px;margin-top:20px;" onclick="renderLobby()">Volver al Lobby</button>
+  `;
+}
+
+// ============================================
+// GAME START (HOST)
+// ============================================
+function startMultiplayerGame(mode) {
+  gameMode = mode;
+  currentRound = 0;
+  roundAnswers = {};
+  roundTimestamps = {};
+
+  // Reset scores
+  hostPlayers.forEach(p => { p.score = 0; p.drinks = 0; });
+
+  // Prepare reviews
+  let pool = [];
+  if (mode === 'swipe') {
+    pool = allReviews.filter(r => r.review_text && r.stars != null);
+    pool = prioritizeReviews(pool);
+    totalRounds = 10;
+    gameReviews = shuffle(pool).slice(0, totalRounds);
+  } else if (mode === 'rate') {
+    pool = allReviews.filter(r => r.stars != null);
+    pool = prioritizeReviews(pool);
+    totalRounds = 10;
+    gameReviews = shuffle(pool).slice(0, totalRounds);
+  } else if (mode === 'where') {
+    pool = allReviews.filter(r => r.review_photos && r.review_photos.length > 0);
+    totalRounds = Math.min(10, pool.length);
+    gameReviews = shuffle(pool).slice(0, totalRounds);
+  } else if (mode === 'higher-lower') {
+    pool = allReviews.filter(r => r.stars != null && r.place_image);
+    totalRounds = 10;
+    gameReviews = generateHigherLowerPairs(pool);
+  } else if (mode === 'closest') {
+    pool = allReviews.filter(r => r.stars != null && r.review_text);
+    pool = prioritizeReviews(pool);
+    totalRounds = 10;
+    gameReviews = shuffle(pool).slice(0, totalRounds);
+  } else if (mode === 'bingo') {
+    pool = allReviews.filter(r => r.review_text);
+    pool = prioritizeReviews(pool);
+    gameReviews = shuffle(pool);
+    totalRounds = gameReviews.length;
+    bingoReviewIndex = 0;
+    // Generate unique bingo cards for each player
+    hostPlayers.forEach(p => {
+      p.bingoCard = generateBingoCard();
+    });
+  } else if (mode === 'tribunal') {
+    pool = allReviews.filter(r => r.stars === 1 && r.review_text);
+    totalRounds = Math.min(10, pool.length);
+    gameReviews = shuffle(pool).slice(0, totalRounds);
+  }
+
+  // Broadcast game start
+  hostPlayers.forEach(p => {
+    const msg = { type: 'game-start', mode, totalRounds };
+    if (mode === 'bingo') msg.bingoCard = p.bingoCard;
+    if (p.peerId === myPeerId) {
+      // Host processes locally
+      myScore = 0;
+      myDrinks = 0;
+      if (mode === 'bingo') myBingoCard = p.bingoCard;
+    } else if (connections[p.peerId]) {
+      try { connections[p.peerId].send(msg); } catch(e) {}
+    }
+  });
+
+  showScreen('game-screen');
+
+  if (mode === 'bingo') {
+    hostSendBingoRound();
+  } else if (mode === 'tribunal') {
+    hostSendTribunalRound();
+  } else {
+    hostSendRound();
+  }
+}
+
+// ============================================
+// HIGHER/LOWER PAIR GENERATION
+// ============================================
+function generateHigherLowerPairs(pool) {
+  const pairs = [];
+  const used = new Set();
+  const shuffled = shuffle(pool);
+  for (let i = 0; i < shuffled.length && pairs.length < 10; i++) {
+    for (let j = i + 1; j < shuffled.length && pairs.length < 10; j++) {
+      const a = shuffled[i], b = shuffled[j];
+      if (used.has(a.place_name) || used.has(b.place_name)) continue;
+      if (Math.abs(a.stars - b.stars) >= 1) {
+        pairs.push([a, b]);
+        used.add(a.place_name);
+        used.add(b.place_name);
+        break;
+      }
+    }
+  }
+  return pairs;
+}
+
+// ============================================
+// BINGO CARD GENERATION
+// ============================================
+const BINGO_PHRASES = [
+  "overpriced", "excellent service", "best ever", "will not come back",
+  "too crowded", "good price", "disgusting", "Erasmus", "portions",
+  "recommend", "rip-off", "dirty", "friendly", "expensive", "delicious",
+  "slow service", "fantastic", "scam", "nice place", "clean",
+  "noisy", "tourist trap", "worth it", "disappointing", "amazing",
+  "horrible", "terrible", "beautiful", "rude", "fresh",
+  "cold food", "good vibes", "traditional", "fast", "tasty"
+];
+
+function generateBingoCard() {
+  const shuffled = shuffle(BINGO_PHRASES);
+  return shuffled.slice(0, 16);
+}
+
+// ============================================
+// ROUND MANAGEMENT (HOST)
+// ============================================
+function hostSendRound() {
+  roundAnswers = {};
+  roundTimestamps = {};
+  roundActive = true;
+  playerAnswered = false;
+
+  if (currentRound >= totalRounds) {
+    showScoreboard();
+    return;
+  }
+
+  let roundData = {};
+
+  if (gameMode === 'swipe') {
+    const review = gameReviews[currentRound];
+    const options = generatePlaceOptions(review);
+    roundData = {
+      type: 'round', mode: 'swipe', roundNum: currentRound, totalRounds,
+      image: review.place_image,
+      reviewText: review.review_text || 'Sin texto de resena',
+      options,
+      correctAnswer: review.place_name
+    };
+  } else if (gameMode === 'rate') {
+    const review = gameReviews[currentRound];
+    roundData = {
+      type: 'round', mode: 'rate', roundNum: currentRound, totalRounds,
+      image: review.place_image,
+      placeName: review.place_name,
+      address: review.address || '',
+      correctAnswer: review.stars
+    };
+  } else if (gameMode === 'where') {
+    const review = gameReviews[currentRound];
+    const photo = review.review_photos[Math.floor(Math.random() * review.review_photos.length)];
+    const correctLabel = getCountryCity(review.address);
+    const options = generateLocationOptions(review);
+    roundData = {
+      type: 'round', mode: 'where', roundNum: currentRound, totalRounds,
+      image: photo,
+      options,
+      correctAnswer: correctLabel,
+      placeName: review.place_name,
+      address: review.address
+    };
+  } else if (gameMode === 'higher-lower') {
+    const pair = gameReviews[currentRound];
+    const [a, b] = Math.random() > 0.5 ? [pair[0], pair[1]] : [pair[1], pair[0]];
+    roundData = {
+      type: 'round', mode: 'higher-lower', roundNum: currentRound, totalRounds,
+      left: { name: a.place_name, image: a.place_image, stars: a.stars },
+      right: { name: b.place_name, image: b.place_image, stars: b.stars },
+    };
+    // Store for resolution
+    gameReviews[currentRound]._left = a;
+    gameReviews[currentRound]._right = b;
+  } else if (gameMode === 'closest') {
+    const review = gameReviews[currentRound];
+    // Strip obvious rating clues from review text
+    let snippet = review.review_text || '';
+    snippet = snippet.replace(/\b\d\s*(star|estrella|\/5|out of)\b/gi, '___');
+    if (snippet.length > 180) snippet = snippet.slice(0, 180) + '...';
+    roundData = {
+      type: 'round', mode: 'closest', roundNum: currentRound, totalRounds,
+      image: review.place_image,
+      placeName: review.place_name,
+      reviewSnippet: snippet,
+      correctAnswer: review.stars
+    };
+  }
+
+  // Store round data for host resolution
+  roundData._hostData = true;
+  broadcast(roundData);
+
+  // Render on host screen too
+  renderHostRound(roundData);
+}
+
+function generatePlaceOptions(review) {
+  const correct = review.place_name;
+  const others = allReviews.filter(r => r.place_name !== correct).map(r => r.place_name);
+  const wrongs = shuffle(others).slice(0, 3);
+  return shuffle([correct, ...wrongs]);
+}
+
+function generateLocationOptions(review) {
+  const correct = getCountryCity(review.address);
+  const allLocations = [...new Set(allReviews.map(r => getCountryCity(r.address)))];
+  const wrongs = shuffle(allLocations.filter(l => l !== correct)).slice(0, 3);
+  return shuffle([correct, ...wrongs]);
+}
+
+// ============================================
+// HOST ROUND RENDERING
+// ============================================
+function renderHostRound(data) {
+  const gs = document.getElementById('game-screen');
+  const activeCount = hostPlayers.filter(p => !p.disconnected).length;
+
+  if (data.mode === 'swipe') {
+    gs.innerHTML = `
+      <div class="round-info">RONDA ${data.roundNum + 1} / ${data.totalRounds} &middot; SWIPE IT</div>
+      <div class="game-card">
+        <img class="card-image" src="${escapeAttr(data.image)}" alt="Place" ${imgErrorHandler('&#127869;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+        <div class="card-body">
+          <div class="card-review">${escapeHtml(data.reviewText)}</div>
+          <div class="card-prompt">&#128270; QUE SITIO ES ESTE?</div>
+        </div>
+      </div>
+      <div class="options" id="optionsContainer">
+        ${data.options.map((opt, i) => `<button class="opt-btn" onclick="hostAnswer('${escapeAttr(opt)}')">${escapeHtml(opt)}</button>`).join('')}
+      </div>
+      <div class="answer-tracker" id="answerTracker">${renderAnswerDots(0, activeCount)}</div>
+    `;
+  } else if (data.mode === 'rate') {
+    gs.innerHTML = `
+      <div class="round-info">RONDA ${data.roundNum + 1} / ${data.totalRounds} &middot; RATE IT</div>
+      <div class="game-card">
+        <img class="card-image" src="${escapeAttr(data.image)}" alt="Place" ${imgErrorHandler('&#127869;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+        <div class="card-body">
+          <div class="card-place-name">${escapeHtml(data.placeName)}</div>
+          <div class="card-address">${escapeHtml(data.address)}</div>
+          <div class="card-prompt">&#11088; QUE NOTA LE PUSO JAVIER?</div>
+        </div>
+      </div>
+      <div class="star-picker" id="starPicker">
+        ${[1,2,3,4,5].map(n => `<button class="star-pick" onclick="hostAnswer(${n})">${n} &#11088;</button>`).join('')}
+      </div>
+      <div class="answer-tracker" id="answerTracker">${renderAnswerDots(0, activeCount)}</div>
+    `;
+  } else if (data.mode === 'where') {
+    gs.innerHTML = `
+      <div class="round-info">RONDA ${data.roundNum + 1} / ${data.totalRounds} &middot; DONDE ESTABA?</div>
+      <div class="game-card">
+        <img class="card-image" src="${escapeAttr(data.image)}" alt="Foto" ${imgErrorHandler('&#128247;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+        <div class="card-body">
+          <div class="card-prompt">&#127758; DONDE ESTABA JAVIER?</div>
+        </div>
+      </div>
+      <div class="options" id="optionsContainer">
+        ${data.options.map(opt => `<button class="opt-btn" onclick="hostAnswer('${escapeAttr(opt)}')">${escapeHtml(opt)}</button>`).join('')}
+      </div>
+      <div class="answer-tracker" id="answerTracker">${renderAnswerDots(0, activeCount)}</div>
+    `;
+  } else if (data.mode === 'higher-lower') {
+    gs.innerHTML = `
+      <div class="round-info">RONDA ${data.roundNum + 1} / ${data.totalRounds} &middot; MAS O MENOS</div>
+      <div class="card-prompt">&#9878;&#65039; CUAL PUNTUO JAVIER MAS ALTO?</div>
+      <div class="dual-cards">
+        <div class="side-card" onclick="hostAnswer('left')">
+          <img class="side-img" src="${escapeAttr(data.left.image)}" alt="" ${imgErrorHandler('&#127869;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+          <div class="side-body"><div class="side-name">${escapeHtml(data.left.name)}</div></div>
+        </div>
+        <div class="side-card" onclick="hostAnswer('right')">
+          <img class="side-img" src="${escapeAttr(data.right.image)}" alt="" ${imgErrorHandler('&#127869;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+          <div class="side-body"><div class="side-name">${escapeHtml(data.right.name)}</div></div>
+        </div>
+      </div>
+      <div class="answer-tracker" id="answerTracker">${renderAnswerDots(0, activeCount)}</div>
+    `;
+  } else if (data.mode === 'closest') {
+    gs.innerHTML = `
+      <div class="round-info">RONDA ${data.roundNum + 1} / ${data.totalRounds} &middot; LA ESCALA DE JAVIER</div>
+      <div class="game-card">
+        <img class="card-image" src="${escapeAttr(data.image)}" alt="Place" ${imgErrorHandler('&#127869;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+        <div class="card-body">
+          <div class="card-place-name">${escapeHtml(data.placeName)}</div>
+          <div class="card-review">${escapeHtml(data.reviewSnippet)}</div>
+          <div class="card-prompt">&#127919; QUE NOTA LE PUSO? (1-5)</div>
+        </div>
+      </div>
+      <div class="star-picker" id="starPicker">
+        ${[1,2,3,4,5].map(n => `<button class="star-pick" onclick="hostAnswer(${n})">${n} &#11088;</button>`).join('')}
+      </div>
+      <div class="answer-tracker" id="answerTracker">${renderAnswerDots(0, activeCount)}</div>
+    `;
+  }
+}
+
+function renderAnswerDots(answered, total) {
+  let html = '';
+  for (let i = 0; i < total; i++) {
+    html += `<div class="answer-dot ${i < answered ? 'answered' : ''}"></div>`;
+  }
+  return html + ` ${answered}/${total}`;
+}
+
+function updateAnswerDots(answered, total) {
+  const tracker = document.getElementById('answerTracker');
+  if (tracker) tracker.innerHTML = renderAnswerDots(answered, total);
+}
+
+// Host answers for themselves
+function hostAnswer(answer) {
+  if (roundAnswers[myPeerId] !== undefined) return; // already answered
+  roundAnswers[myPeerId] = answer;
+  roundTimestamps[myPeerId] = Date.now();
+  playerAnswered = true;
+
+  // Visual feedback
+  disableHostInputs();
+
+  broadcastAnswerCount();
+  checkAllAnswered();
+}
+
+function disableHostInputs() {
+  document.querySelectorAll('.opt-btn, .star-pick, .side-card, .vote-btn').forEach(el => {
+    el.style.pointerEvents = 'none';
+    el.style.opacity = '0.5';
+  });
+}
+
+// ============================================
+// PLAYER ROUND RENDERING
+// ============================================
+function renderPlayerWaiting() {
+  const gs = document.getElementById('game-screen');
+  gs.innerHTML = `<div class="waiting-msg">Preparando ronda...</div>`;
+}
+
+function renderPlayerRound(data) {
+  showScreen('game-screen');
+  const gs = document.getElementById('game-screen');
+  playerAnswered = false;
+
+  if (data.mode === 'swipe') {
+    gs.innerHTML = `
+      <div class="round-info">RONDA ${data.roundNum + 1} / ${data.totalRounds} &middot; SWIPE IT</div>
+      <div class="game-card">
+        <img class="card-image" src="${escapeAttr(data.image)}" alt="Place" ${imgErrorHandler('&#127869;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+        <div class="card-body">
+          <div class="card-review">${escapeHtml(data.reviewText)}</div>
+          <div class="card-prompt">&#128270; QUE SITIO ES ESTE?</div>
+        </div>
+      </div>
+      <div class="options" id="optionsContainer">
+        ${data.options.map(opt => `<button class="opt-btn" onclick="playerSubmitAnswer('${escapeAttr(opt)}')">${escapeHtml(opt)}</button>`).join('')}
+      </div>
+      <div class="answer-tracker" id="answerTracker"></div>
+    `;
+  } else if (data.mode === 'rate') {
+    gs.innerHTML = `
+      <div class="round-info">RONDA ${data.roundNum + 1} / ${data.totalRounds} &middot; RATE IT</div>
+      <div class="game-card">
+        <img class="card-image" src="${escapeAttr(data.image)}" alt="Place" ${imgErrorHandler('&#127869;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+        <div class="card-body">
+          <div class="card-place-name">${escapeHtml(data.placeName)}</div>
+          <div class="card-address">${escapeHtml(data.address || '')}</div>
+          <div class="card-prompt">&#11088; QUE NOTA LE PUSO JAVIER?</div>
+        </div>
+      </div>
+      <div class="star-picker" id="starPicker">
+        ${[1,2,3,4,5].map(n => `<button class="star-pick" onclick="playerSubmitAnswer(${n})">${n} &#11088;</button>`).join('')}
+      </div>
+      <div class="answer-tracker" id="answerTracker"></div>
+    `;
+  } else if (data.mode === 'where') {
+    gs.innerHTML = `
+      <div class="round-info">RONDA ${data.roundNum + 1} / ${data.totalRounds} &middot; DONDE ESTABA?</div>
+      <div class="game-card">
+        <img class="card-image" src="${escapeAttr(data.image)}" alt="Foto" ${imgErrorHandler('&#128247;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+        <div class="card-body">
+          <div class="card-prompt">&#127758; DONDE ESTABA JAVIER?</div>
+        </div>
+      </div>
+      <div class="options" id="optionsContainer">
+        ${data.options.map(opt => `<button class="opt-btn" onclick="playerSubmitAnswer('${escapeAttr(opt)}')">${escapeHtml(opt)}</button>`).join('')}
+      </div>
+      <div class="answer-tracker" id="answerTracker"></div>
+    `;
+  } else if (data.mode === 'higher-lower') {
+    gs.innerHTML = `
+      <div class="round-info">RONDA ${data.roundNum + 1} / ${data.totalRounds} &middot; MAS O MENOS</div>
+      <div class="card-prompt">&#9878;&#65039; CUAL PUNTUO JAVIER MAS ALTO?</div>
+      <div class="dual-cards">
+        <div class="side-card" onclick="playerSubmitAnswer('left')">
+          <img class="side-img" src="${escapeAttr(data.left.image)}" alt="" ${imgErrorHandler('&#127869;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+          <div class="side-body"><div class="side-name">${escapeHtml(data.left.name)}</div></div>
+        </div>
+        <div class="side-card" onclick="playerSubmitAnswer('right')">
+          <img class="side-img" src="${escapeAttr(data.right.image)}" alt="" ${imgErrorHandler('&#127869;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+          <div class="side-body"><div class="side-name">${escapeHtml(data.right.name)}</div></div>
+        </div>
+      </div>
+      <div class="answer-tracker" id="answerTracker"></div>
+    `;
+  } else if (data.mode === 'closest') {
+    gs.innerHTML = `
+      <div class="round-info">RONDA ${data.roundNum + 1} / ${data.totalRounds} &middot; LA ESCALA DE JAVIER</div>
+      <div class="game-card">
+        <img class="card-image" src="${escapeAttr(data.image)}" alt="Place" ${imgErrorHandler('&#127869;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+        <div class="card-body">
+          <div class="card-place-name">${escapeHtml(data.placeName)}</div>
+          <div class="card-review">${escapeHtml(data.reviewSnippet)}</div>
+          <div class="card-prompt">&#127919; QUE NOTA LE PUSO? (1-5)</div>
+        </div>
+      </div>
+      <div class="star-picker" id="starPicker">
+        ${[1,2,3,4,5].map(n => `<button class="star-pick" onclick="playerSubmitAnswer(${n})">${n} &#11088;</button>`).join('')}
+      </div>
+      <div class="answer-tracker" id="answerTracker"></div>
+    `;
+  }
+}
+
+function playerSubmitAnswer(answer) {
+  if (playerAnswered) return;
+  playerAnswered = true;
+  sendToHost({ type: 'answer', answer });
+
+  // Visual feedback: dim all, highlight selected
+  document.querySelectorAll('.opt-btn').forEach(btn => {
+    btn.style.pointerEvents = 'none';
+    if (btn.textContent.trim() === String(answer)) {
+      btn.classList.add('selected');
+    } else {
+      btn.style.opacity = '0.4';
+    }
+  });
+  document.querySelectorAll('.star-pick').forEach(btn => {
+    btn.style.pointerEvents = 'none';
+    if (parseInt(btn.textContent) === answer) {
+      btn.classList.add('selected');
+    } else {
+      btn.style.opacity = '0.4';
+    }
+  });
+  document.querySelectorAll('.side-card').forEach(card => {
+    card.style.pointerEvents = 'none';
+    const side = card === card.parentElement.firstElementChild ? 'left' : 'right';
+    if (side === answer) {
+      card.classList.add('selected');
+    } else {
+      card.style.opacity = '0.4';
+    }
+  });
+}
+
+// ============================================
+// ROUND RESOLUTION (HOST)
+// ============================================
+function resolveRound() {
+  roundActive = false;
+
+  if (gameMode === 'swipe') resolveSwipeRound();
+  else if (gameMode === 'rate') resolveRateRound();
+  else if (gameMode === 'where') resolveWhereRound();
+  else if (gameMode === 'higher-lower') resolveHigherLowerRound();
+  else if (gameMode === 'closest') resolveClosestRound();
+}
+
+function resolveSwipeRound() {
+  const review = gameReviews[currentRound];
+  const correct = review.correctAnswer || review.place_name;
+  const results = {};
+
+  // Find first correct answer timestamp
+  let firstCorrectTime = Infinity;
+  let firstCorrectPeer = null;
+  for (const [pid, ans] of Object.entries(roundAnswers)) {
+    if (ans === correct && roundTimestamps[pid] < firstCorrectTime) {
+      firstCorrectTime = roundTimestamps[pid];
+      firstCorrectPeer = pid;
+    }
+  }
+
+  hostPlayers.forEach(p => {
+    const ans = roundAnswers[p.peerId];
+    if (ans === correct) {
+      if (p.peerId === firstCorrectPeer) {
+        p.score += 2;
+        results[p.peerId] = { correct: true, points: 2, first: true };
+      } else {
+        p.score += 1;
+        results[p.peerId] = { correct: true, points: 1, first: false };
+      }
+    } else {
+      p.drinks += 1;
+      results[p.peerId] = { correct: false, drink: true };
+    }
+  });
+
+  const revealData = {
+    type: 'reveal', mode: 'swipe',
+    correctAnswer: correct,
+    placeName: review.place_name,
+    address: review.address,
+    results,
+    roundNum: currentRound,
+    totalRounds
+  };
+
+  broadcast(revealData);
+  renderHostReveal(revealData);
+}
+
+function resolveRateRound() {
+  const review = gameReviews[currentRound];
+  const actual = review.stars;
+  const results = {};
+
+  hostPlayers.forEach(p => {
+    const guess = roundAnswers[p.peerId];
+    if (guess === undefined) {
+      p.drinks += 1;
+      results[p.peerId] = { correct: false, drink: true, guess: null, actual };
+      return;
+    }
+    const diff = Math.abs(guess - actual);
+    if (diff === 0) {
+      p.score += 3;
+      results[p.peerId] = { correct: true, exact: true, points: 3, guess, actual };
+    } else if (diff === 1) {
+      p.score += 1;
+      results[p.peerId] = { correct: true, exact: false, points: 1, guess, actual };
+    } else {
+      p.drinks += 1;
+      results[p.peerId] = { correct: false, drink: true, guess, actual };
+    }
+  });
+
+  const reviewSnippet = (review.review_text || '').slice(0, 150);
+  const revealData = {
+    type: 'reveal', mode: 'rate',
+    correctAnswer: actual,
+    placeName: review.place_name,
+    reviewSnippet,
+    results,
+    roundNum: currentRound,
+    totalRounds
+  };
+
+  broadcast(revealData);
+  renderHostReveal(revealData);
+}
+
+function resolveWhereRound() {
+  const review = gameReviews[currentRound];
+  const correct = getCountryCity(review.address);
+  const results = {};
+
+  let firstCorrectTime = Infinity;
+  let firstCorrectPeer = null;
+  for (const [pid, ans] of Object.entries(roundAnswers)) {
+    if (ans === correct && roundTimestamps[pid] < firstCorrectTime) {
+      firstCorrectTime = roundTimestamps[pid];
+      firstCorrectPeer = pid;
+    }
+  }
+
+  hostPlayers.forEach(p => {
+    const ans = roundAnswers[p.peerId];
+    if (ans === correct) {
+      if (p.peerId === firstCorrectPeer) {
+        p.score += 2;
+        results[p.peerId] = { correct: true, points: 2, first: true };
+      } else {
+        p.score += 1;
+        results[p.peerId] = { correct: true, points: 1, first: false };
+      }
+    } else {
+      p.drinks += 1;
+      results[p.peerId] = { correct: false, drink: true };
+    }
+  });
+
+  const revealData = {
+    type: 'reveal', mode: 'where',
+    correctAnswer: correct,
+    placeName: review.place_name,
+    address: review.address,
+    results,
+    roundNum: currentRound,
+    totalRounds
+  };
+
+  broadcast(revealData);
+  renderHostReveal(revealData);
+}
+
+function resolveHigherLowerRound() {
+  const pair = gameReviews[currentRound];
+  const left = pair._left || pair[0];
+  const right = pair._right || pair[1];
+  const results = {};
+
+  const tied = left.stars === right.stars;
+  const correctSide = left.stars > right.stars ? 'left' : (right.stars > left.stars ? 'right' : 'tie');
+
+  hostPlayers.forEach(p => {
+    const ans = roundAnswers[p.peerId];
+    if (tied) {
+      // Everyone safe
+      results[p.peerId] = { correct: true, safe: true, points: 1 };
+      p.score += 1;
+    } else if (ans === correctSide) {
+      p.score += 1;
+      results[p.peerId] = { correct: true, points: 1 };
+    } else {
+      p.drinks += 1;
+      results[p.peerId] = { correct: false, drink: true };
+    }
+  });
+
+  const revealData = {
+    type: 'reveal', mode: 'higher-lower',
+    leftName: left.place_name, leftStars: left.stars,
+    rightName: right.place_name, rightStars: right.stars,
+    correctSide, tied,
+    results,
+    roundNum: currentRound,
+    totalRounds
+  };
+
+  broadcast(revealData);
+  renderHostReveal(revealData);
+}
+
+function resolveClosestRound() {
+  const review = gameReviews[currentRound];
+  const actual = review.stars;
+  const results = {};
+
+  // Find closest and furthest
+  let minDiff = Infinity, maxDiff = -1;
+  hostPlayers.forEach(p => {
+    const guess = roundAnswers[p.peerId];
+    if (guess === undefined) return;
+    const diff = Math.abs(guess - actual);
+    if (diff < minDiff) minDiff = diff;
+    if (diff > maxDiff) maxDiff = diff;
+  });
+
+  hostPlayers.forEach(p => {
+    const guess = roundAnswers[p.peerId];
+    if (guess === undefined) {
+      p.drinks += 1;
+      results[p.peerId] = { guess: null, actual, drink: true, points: 0 };
+      return;
+    }
+    const diff = Math.abs(guess - actual);
+    let points = 0;
+    let drink = false;
+    if (diff === minDiff) {
+      points = 3;
+      p.score += 3;
+    }
+    if (diff === maxDiff && maxDiff > 0) {
+      drink = true;
+      p.drinks += 1;
+    }
+    results[p.peerId] = { guess, actual, diff, points, drink, closest: diff === minDiff, furthest: diff === maxDiff && maxDiff > 0 };
+  });
+
+  const revealData = {
+    type: 'reveal', mode: 'closest',
+    correctAnswer: actual,
+    placeName: review.place_name,
+    reviewText: (review.review_text || '').slice(0, 200),
+    results,
+    roundNum: currentRound,
+    totalRounds
+  };
+
+  broadcast(revealData);
+  renderHostReveal(revealData);
+}
+
+// ============================================
+// REVEAL RENDERING (HOST)
+// ============================================
+function renderHostReveal(data) {
+  const gs = document.getElementById('game-screen');
+  const myResult = data.results[myPeerId] || {};
+
+  // Update local score/drinks for display
+  const me = hostPlayers.find(p => p.peerId === myPeerId);
+  if (me) { myScore = me.score; myDrinks = me.drinks; }
+
+  let revealHtml = '';
+
+  // Show per-player results
+  const playerResults = hostPlayers.map((p, i) => {
+    const r = data.results[p.peerId] || {};
+    let status = '';
+    if (r.correct && r.first) status = '<span style="color:var(--gold)">&#9733; +2 (primero!)</span>';
+    else if (r.correct && r.exact) status = '<span style="color:var(--green)">&#10004; +3 (clavado!)</span>';
+    else if (r.correct && r.closest) status = '<span style="color:var(--green)">&#10004; +3 (mas cercano)</span>';
+    else if (r.correct && r.safe) status = '<span style="color:var(--green)">&#10004; +1 (empate)</span>';
+    else if (r.correct) status = `<span style="color:var(--green)">&#10004; +${r.points || 1}</span>`;
+    else if (r.drink || r.furthest) status = '<span style="color:var(--accent)">&#127866; BEBE!</span>';
+    else status = '<span style="color:var(--muted)">---</span>';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;">
+      <div class="player-avatar" style="background:${playerColor(i)};width:30px;height:30px;font-size:0.85rem;">${p.name.charAt(0).toUpperCase()}</div>
+      <span style="flex:1;font-weight:600;font-size:0.85rem;">${escapeHtml(p.name)}</span>
+      ${status}
+    </div>`;
+  }).join('');
+
+  // Build reveal info
+  let infoHtml = '';
+  if (data.mode === 'swipe') {
+    infoHtml = `<div style="font-weight:700;">&#10004; ${escapeHtml(data.correctAnswer)}</div><div style="color:var(--muted);font-size:0.8rem;">${escapeHtml(data.address || '')}</div>`;
+  } else if (data.mode === 'rate') {
+    const stars = '&#11088;'.repeat(data.correctAnswer);
+    infoHtml = `<div style="font-weight:700;">${stars} (${data.correctAnswer}/5)</div>
+      <div style="color:var(--muted);font-size:0.8rem;font-style:italic;margin-top:4px;">"${escapeHtml(data.reviewSnippet || '')}"</div>`;
+  } else if (data.mode === 'where') {
+    infoHtml = `<div style="font-weight:700;">${escapeHtml(data.correctAnswer)}</div><div style="color:var(--muted);font-size:0.8rem;">${escapeHtml(data.placeName)}</div>`;
+  } else if (data.mode === 'higher-lower') {
+    const ls = '&#11088;'.repeat(data.leftStars);
+    const rs = '&#11088;'.repeat(data.rightStars);
+    infoHtml = `<div style="display:flex;gap:16px;justify-content:center;align-items:center;">
+      <div style="text-align:center;"><div style="font-weight:600;font-size:0.85rem;">${escapeHtml(data.leftName)}</div><div>${ls}</div></div>
+      <div style="color:var(--muted);font-weight:900;">VS</div>
+      <div style="text-align:center;"><div style="font-weight:600;font-size:0.85rem;">${escapeHtml(data.rightName)}</div><div>${rs}</div></div>
+    </div>${data.tied ? '<div style="color:var(--neon);margin-top:6px;">Empate! Todos a salvo</div>' : ''}`;
+  } else if (data.mode === 'closest') {
+    const stars = '&#11088;'.repeat(data.correctAnswer);
+    infoHtml = `<div style="font-weight:700;">${escapeHtml(data.placeName)}: ${stars} (${data.correctAnswer}/5)</div>
+      <div style="color:var(--muted);font-size:0.8rem;font-style:italic;margin-top:4px;">"${escapeHtml(data.reviewText || '')}"</div>`;
+  }
+
+  // Personal result overlay
+  if (myResult.drink || myResult.furthest) {
+    showDrinkOverlay();
+  } else if (myResult.correct || myResult.closest) {
+    showConfetti();
+  }
+
+  const isLast = data.roundNum + 1 >= data.totalRounds;
+
+  gs.innerHTML = `
+    <div class="round-info">RESULTADO RONDA ${data.roundNum + 1} / ${data.totalRounds}</div>
+    <div class="result-banner neutral">
+      ${infoHtml}
+    </div>
+    <div style="width:100%;max-width:500px;background:var(--card);border-radius:var(--radius);padding:16px;margin-top:14px;border:1px solid rgba(255,255,255,0.06);">
+      ${playerResults}
+    </div>
+    <button class="next-btn" onclick="hostNextRound()">${isLast ? 'Ver Puntuaciones' : 'Siguiente Ronda'}</button>
+  `;
+}
+
+function hostNextRound() {
+  currentRound++;
+  if (currentRound >= totalRounds) {
+    showScoreboard();
+  } else {
+    hostSendRound();
+  }
+}
+
+// ============================================
+// PLAYER REVEAL RENDERING
+// ============================================
+function renderPlayerReveal(data) {
+  const gs = document.getElementById('game-screen');
+  const myResult = data.results[myPeerId] || {};
+
+  // Update local scores
+  if (myResult.points) myScore += myResult.points;
+  if (myResult.drink) myDrinks++;
+
+  if (myResult.drink || myResult.furthest) {
+    showDrinkOverlay();
+  } else if (myResult.correct || myResult.closest) {
+    showConfetti();
+  }
+
+  let msg = '';
+  if (myResult.correct && myResult.first) msg = '&#9733; Primero! +2 puntos';
+  else if (myResult.correct && myResult.exact) msg = '&#10004; Clavado! +3 puntos';
+  else if (myResult.correct && myResult.closest) msg = '&#127919; Mas cercano! +3 puntos';
+  else if (myResult.correct && myResult.safe) msg = '&#10004; Empate! +1 punto';
+  else if (myResult.correct) msg = `&#10004; Correcto! +${myResult.points || 1} punto${(myResult.points||1)>1?'s':''}`;
+  else if (myResult.drink || myResult.furthest) msg = '&#127866; BEBE!';
+  else msg = '---';
+
+  let infoHtml = '';
+  if (data.mode === 'swipe') {
+    infoHtml = `<strong>${escapeHtml(data.correctAnswer)}</strong>`;
+  } else if (data.mode === 'rate') {
+    infoHtml = `${'&#11088;'.repeat(data.correctAnswer)} (${data.correctAnswer}/5)<br><em style="font-size:0.8rem;color:var(--muted);">"${escapeHtml(data.reviewSnippet||'')}"</em>`;
+  } else if (data.mode === 'where') {
+    infoHtml = `<strong>${escapeHtml(data.correctAnswer)}</strong><br><span style="font-size:0.8rem;color:var(--muted);">${escapeHtml(data.placeName)}</span>`;
+  } else if (data.mode === 'higher-lower') {
+    infoHtml = `${escapeHtml(data.leftName)}: ${'&#11088;'.repeat(data.leftStars)} vs ${escapeHtml(data.rightName)}: ${'&#11088;'.repeat(data.rightStars)}`;
+    if (data.tied) infoHtml += '<br><span style="color:var(--neon);">Empate!</span>';
+  } else if (data.mode === 'closest') {
+    infoHtml = `${escapeHtml(data.placeName)}: ${'&#11088;'.repeat(data.correctAnswer)} (${data.correctAnswer}/5)`;
+  }
+
+  const isCorrect = myResult.correct || myResult.closest || myResult.safe;
+  gs.innerHTML = `
+    <div class="result-banner ${isCorrect ? 'success' : 'fail'}">
+      <div style="font-size:1.2rem;">${msg}</div>
+    </div>
+    <div class="result-banner neutral" style="margin-top:10px;">
+      ${infoHtml}
+    </div>
+    <div style="text-align:center;margin-top:16px;color:var(--muted);font-size:0.85rem;">
+      Puntos: <strong style="color:var(--green);">${myScore}</strong> &middot; Tragos: <strong style="color:var(--accent);">${myDrinks}</strong>
+    </div>
+    <div class="waiting-msg" style="margin-top:20px;">Esperando al host...</div>
+  `;
+}
+
+// ============================================
+// BINGO MODE (HOST)
+// ============================================
+function hostSendBingoRound() {
+  if (bingoReviewIndex >= gameReviews.length) {
+    // No one got bingo, end game
+    showScoreboard();
+    return;
+  }
+
+  roundActive = true;
+  const review = gameReviews[bingoReviewIndex];
+  const msg = {
+    type: 'bingo-review',
+    review: {
+      place_name: review.place_name,
+      review_text: review.review_text || '',
+      stars: review.stars,
+      place_image: review.place_image,
+      address: review.address
+    },
+    reviewNum: bingoReviewIndex + 1,
+    totalReviews: gameReviews.length
+  };
+
+  broadcast(msg);
+  renderHostBingo(msg);
+}
+
+function renderHostBingo(data) {
+  showScreen('game-screen');
+  const gs = document.getElementById('game-screen');
+
+  // Host sees their own bingo card + current review
+  const review = data.review;
+  const card = hostPlayers[0].bingoCard; // host's card
+
+  gs.innerHTML = `
+    <div class="round-info">BINGO &middot; Resena ${data.reviewNum} / ${data.totalReviews}</div>
+    <div class="game-card" style="max-width:500px;">
+      <img class="card-image" src="${escapeAttr(review.place_image)}" alt="" ${imgErrorHandler('&#127869;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+      <div class="card-body">
+        <div class="card-place-name">${escapeHtml(review.place_name)}</div>
+        <div class="card-review">${escapeHtml(review.review_text)}</div>
+        ${review.stars ? `<div style="margin-top:6px;">${'&#11088;'.repeat(review.stars)}</div>` : ''}
+      </div>
+    </div>
+    <div class="bingo-grid" id="bingoGrid">
+      ${card.map((phrase, i) => `
+        <div class="bingo-cell" data-idx="${i}" onclick="toggleBingoCell(this, ${i})">${escapeHtml(phrase)}</div>
+      `).join('')}
+    </div>
+    <button class="bingo-claim-btn" onclick="hostClaimBingo()">BINGO!</button>
+    <button class="next-btn" style="margin-top:10px;background:var(--card);box-shadow:none;font-size:0.85rem;" onclick="hostNextBingoReview()">Siguiente Resena &#8594;</button>
+  `;
+
+  // Restore marked cells
+  restoreMarkedCells();
+}
+
+let markedBingoCells = new Set();
+
+function toggleBingoCell(el, idx) {
+  if (markedBingoCells.has(idx)) {
+    markedBingoCells.delete(idx);
+    el.classList.remove('marked');
+  } else {
+    markedBingoCells.add(idx);
+    el.classList.add('marked');
+  }
+}
+
+function restoreMarkedCells() {
+  document.querySelectorAll('.bingo-cell').forEach(cell => {
+    const idx = parseInt(cell.dataset.idx);
+    if (markedBingoCells.has(idx)) cell.classList.add('marked');
+  });
+}
+
+function hostClaimBingo() {
+  // Validate host bingo
+  handleBingoClaim(myPeerId);
+}
+
+function hostNextBingoReview() {
+  bingoReviewIndex++;
+  hostSendBingoRound();
+}
+
+function handleBingoClaim(claimerPeerId) {
+  const player = hostPlayers.find(p => p.peerId === claimerPeerId);
+  if (!player) return;
+
+  // For simplicity, trust the claim (in a real game you'd validate the card)
+  player.score += 10;
+
+  const resultMsg = {
+    type: 'bingo-result',
+    winner: player.name,
+    winnerPeerId: claimerPeerId
+  };
+
+  broadcast(resultMsg);
+  renderBingoResult(resultMsg);
+}
+
+function renderBingoResult(data) {
+  showScreen('game-screen');
+  const gs = document.getElementById('game-screen');
+  const iWon = data.winnerPeerId === myPeerId;
+
+  gs.innerHTML = `
+    <div style="text-align:center;padding:40px 20px;">
+      <div style="font-size:4rem;margin-bottom:16px;">${iWon ? '&#127881;' : '&#127866;'}</div>
+      <div style="font-size:2rem;font-weight:900;margin-bottom:8px;">${iWon ? 'BINGO!' : 'BINGO!'}</div>
+      <div style="font-size:1.2rem;color:var(--gold);font-weight:700;margin-bottom:8px;">${escapeHtml(data.winner)} gana!</div>
+      <div style="color:var(--muted);font-size:0.9rem;">${iWon ? 'Los demas... BEBEN!' : 'Todos los demas beben &#127866;'}</div>
+    </div>
+  `;
+
+  if (iWon) showConfetti();
+  else showDrinkOverlay();
+
+  // For non-winners, add drinks
+  if (isHost) {
+    hostPlayers.forEach(p => {
+      if (p.peerId !== data.winnerPeerId) p.drinks += 1;
+    });
+    setTimeout(() => showScoreboard(), 4000);
+  }
+}
+
+function renderPlayerBingoRound(data) {
+  showScreen('game-screen');
+  const gs = document.getElementById('game-screen');
+  const review = data.review;
+
+  gs.innerHTML = `
+    <div class="round-info">BINGO &middot; Resena ${data.reviewNum} / ${data.totalReviews}</div>
+    <div class="game-card" style="max-width:500px;">
+      <img class="card-image" src="${escapeAttr(review.place_image)}" alt="" ${imgErrorHandler('&#127869;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+      <div class="card-body">
+        <div class="card-place-name">${escapeHtml(review.place_name)}</div>
+        <div class="card-review">${escapeHtml(review.review_text)}</div>
+        ${review.stars ? `<div style="margin-top:6px;">${'&#11088;'.repeat(review.stars)}</div>` : ''}
+      </div>
+    </div>
+    <div class="bingo-grid" id="bingoGrid">
+      ${(myBingoCard || []).map((phrase, i) => `
+        <div class="bingo-cell" data-idx="${i}" onclick="togglePlayerBingoCell(this, ${i})">${escapeHtml(phrase)}</div>
+      `).join('')}
+    </div>
+    <button class="bingo-claim-btn" onclick="claimPlayerBingo()">BINGO!</button>
+  `;
+
+  restoreMarkedCells();
+}
+
+function togglePlayerBingoCell(el, idx) {
+  toggleBingoCell(el, idx);
+}
+
+function claimPlayerBingo() {
+  sendToHost({ type: 'bingo-claim' });
+}
+
+function renderPlayerBingoResult(data) {
+  renderBingoResult(data);
+}
+
+// ============================================
+// TRIBUNAL MODE (HOST)
+// ============================================
+function hostSendTribunalRound() {
+  if (currentRound >= totalRounds) {
+    showScoreboard();
+    return;
+  }
+
+  roundAnswers = {};
+  roundTimestamps = {};
+  roundActive = false;
+
+  const review = gameReviews[currentRound];
+
+  // Pick random player as lawyer
+  const activePlayers = hostPlayers.filter(p => !p.disconnected);
+  const lawyerIdx = currentRound % activePlayers.length;
+  const lawyer = activePlayers[lawyerIdx];
+  tribunalLawyer = lawyer.peerId;
+
+  const assignMsg = {
+    type: 'tribunal-assign',
+    lawyerPeerId: lawyer.peerId,
+    lawyerName: lawyer.name,
+    review: {
+      place_name: review.place_name,
+      review_text: review.review_text || '',
+      place_image: review.place_image,
+      address: review.address,
+      stars: review.stars,
+      owner_response: review.owner_response
+    },
+    roundNum: currentRound,
+    totalRounds
+  };
+
+  broadcast(assignMsg);
+  renderHostTribunalAssign(assignMsg);
+
+  // Start 30s timer, then move to vote
+  if (tribunalTimer) clearTimeout(tribunalTimer);
+  let timeLeft = 30;
+  const timerEl = () => document.getElementById('tribunalTimer');
+  const tick = () => {
+    if (timerEl()) timerEl().textContent = timeLeft;
+    // Also broadcast timer to players
+    broadcast({ type: 'tribunal-timer', time: timeLeft });
+    if (timeLeft <= 0) {
+      hostStartTribunalVote();
+      return;
+    }
+    timeLeft--;
+    tribunalTimer = setTimeout(tick, 1000);
+  };
+  tick();
+}
+
+function renderHostTribunalAssign(data) {
+  showScreen('game-screen');
+  const gs = document.getElementById('game-screen');
+  const review = data.review;
+  const isLawyer = data.lawyerPeerId === myPeerId;
+
+  gs.innerHTML = `
+    <div class="round-info">EL TRIBUNAL &middot; Caso ${data.roundNum + 1} / ${data.totalRounds}</div>
+    <div class="tribunal-card">
+      <div class="tribunal-role ${isLawyer ? 'lawyer' : 'jury'}">${isLawyer ? '&#9878;&#65039; Eres el ABOGADO DEFENSOR' : '&#9878;&#65039; Abogado: ' + escapeHtml(data.lawyerName)}</div>
+      <div style="font-size:0.85rem;color:var(--muted);margin-bottom:12px;">${escapeHtml(review.place_name)} &middot; ${escapeHtml(review.address || '')}</div>
+      <img style="width:100%;border-radius:12px;max-height:200px;object-fit:cover;margin-bottom:12px;" src="${escapeAttr(review.place_image)}" alt="" ${imgErrorHandler('&#127869;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+      <div style="font-style:italic;color:var(--accent);font-weight:600;font-size:0.95rem;margin-bottom:8px;">Resena de 1 estrella de Javier:</div>
+      <div class="card-review">${escapeHtml(review.review_text)}</div>
+      ${review.owner_response ? `<div style="margin-top:10px;padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;font-size:0.8rem;color:var(--muted);"><strong>Respuesta del dueno:</strong> ${escapeHtml(review.owner_response)}</div>` : ''}
+    </div>
+    <div class="tribunal-timer" id="tribunalTimer">30</div>
+    <div style="color:var(--muted);font-size:0.85rem;">${isLawyer ? 'Defiende el restaurante!' : 'Escucha la defensa...'}</div>
+    <button class="next-btn" style="margin-top:12px;" onclick="hostStartTribunalVote()">Pasar a Votacion</button>
+  `;
+}
+
+function hostStartTribunalVote() {
+  if (tribunalTimer) clearTimeout(tribunalTimer);
+  roundAnswers = {};
+  roundActive = true;
+
+  const review = gameReviews[currentRound];
+  const voteMsg = {
+    type: 'tribunal-vote-phase',
+    lawyerPeerId: tribunalLawyer,
+    lawyerName: hostPlayers.find(p => p.peerId === tribunalLawyer)?.name || '???',
+    placeName: review.place_name
+  };
+
+  broadcast(voteMsg);
+  renderHostTribunalVote(voteMsg);
+}
+
+function renderHostTribunalVote(data) {
+  const gs = document.getElementById('game-screen');
+  const isLawyer = data.lawyerPeerId === myPeerId;
+  const activeVoters = hostPlayers.filter(p => !p.disconnected && p.peerId !== tribunalLawyer);
+
+  gs.innerHTML = `
+    <div class="round-info">EL TRIBUNAL &middot; VOTACION</div>
+    <div style="text-align:center;margin-bottom:16px;">
+      <div style="font-size:1.1rem;font-weight:700;margin-bottom:4px;">El jurado decide sobre ${escapeHtml(data.placeName)}</div>
+      <div style="color:var(--muted);font-size:0.85rem;">Abogado: ${escapeHtml(data.lawyerName)}</div>
+    </div>
+    ${isLawyer ? `
+      <div class="result-banner neutral">Eres el abogado. Espera el veredicto...</div>
+    ` : `
+      <div class="vote-buttons">
+        <button class="vote-btn guilty" onclick="hostTribunalVote('culpable')">&#128308; Culpable<br><small>Javier tenia razon</small></button>
+        <button class="vote-btn innocent" onclick="hostTribunalVote('inocente')">&#128994; Inocente<br><small>El restaurante merece mas</small></button>
+      </div>
+    `}
+    <div class="answer-tracker" id="answerTracker">${renderAnswerDots(0, activeVoters.length)}</div>
+  `;
+}
+
+function hostTribunalVote(vote) {
+  if (roundAnswers[myPeerId] !== undefined) return;
+  roundAnswers[myPeerId] = vote;
+  disableHostInputs();
+  broadcastAnswerCount();
+
+  // Check if all non-lawyer players have voted
+  const activeVoters = hostPlayers.filter(p => !p.disconnected && p.peerId !== tribunalLawyer);
+  const totalVoters = activeVoters.length;
+  if (Object.keys(roundAnswers).length >= totalVoters) {
+    resolveTribunalRound();
+  }
+}
+
+function resolveTribunalRound() {
+  roundActive = false;
+  const votes = Object.values(roundAnswers);
+  const guiltyCount = votes.filter(v => v === 'culpable').length;
+  const innocentCount = votes.filter(v => v === 'inocente').length;
+  const verdict = innocentCount > guiltyCount ? 'inocente' : 'culpable';
+
+  const lawyer = hostPlayers.find(p => p.peerId === tribunalLawyer);
+
+  if (verdict === 'inocente') {
+    // Javier (the bachelor) drinks - represented by all getting a fun message
+    // Lawyer wins, gets points
+    if (lawyer) lawyer.score += 2;
+  } else {
+    // Lawyer drinks
+    if (lawyer) lawyer.drinks += 1;
+  }
+
+  const review = gameReviews[currentRound];
+  const resultMsg = {
+    type: 'tribunal-result',
+    verdict,
+    guiltyCount,
+    innocentCount,
+    lawyerPeerId: tribunalLawyer,
+    lawyerName: lawyer ? lawyer.name : '???',
+    placeName: review.place_name,
+    roundNum: currentRound,
+    totalRounds
+  };
+
+  broadcast(resultMsg);
+  renderHostTribunalResult(resultMsg);
+}
+
+function renderHostTribunalResult(data) {
+  const gs = document.getElementById('game-screen');
+  const isLawyer = data.lawyerPeerId === myPeerId;
+  const isLast = data.roundNum + 1 >= data.totalRounds;
+
+  if (data.verdict === 'culpable' && isLawyer) showDrinkOverlay();
+  else if (data.verdict === 'inocente' && isLawyer) showConfetti();
+
+  gs.innerHTML = `
+    <div style="text-align:center;padding:20px;">
+      <div style="font-size:3rem;margin-bottom:12px;">${data.verdict === 'inocente' ? '&#128994;' : '&#128308;'}</div>
+      <div style="font-size:1.8rem;font-weight:900;margin-bottom:8px;">${data.verdict === 'inocente' ? 'INOCENTE!' : 'CULPABLE!'}</div>
+      <div style="color:var(--muted);margin-bottom:8px;">Votos: ${data.guiltyCount} culpable / ${data.innocentCount} inocente</div>
+      <div style="font-size:1.1rem;font-weight:700;margin-bottom:4px;color:${data.verdict === 'inocente' ? 'var(--gold)' : 'var(--accent)'};">
+        ${data.verdict === 'inocente' ? 'Javier bebe! El abogado ' + escapeHtml(data.lawyerName) + ' gana +2 puntos' : 'El abogado ' + escapeHtml(data.lawyerName) + ' bebe!'}
+      </div>
+      <div style="color:var(--muted);font-size:0.85rem;margin-top:8px;">${escapeHtml(data.placeName)}</div>
+    </div>
+    ${isHost ? `<button class="next-btn" onclick="hostNextTribunalRound()">${isLast ? 'Ver Puntuaciones' : 'Siguiente Caso'}</button>` : '<div class="waiting-msg">Esperando al host...</div>'}
+  `;
+}
+
+function hostNextTribunalRound() {
+  currentRound++;
+  if (currentRound >= totalRounds) {
+    showScoreboard();
+  } else {
+    hostSendTribunalRound();
+  }
+}
+
+function renderPlayerTribunal(data) {
+  showScreen('game-screen');
+  const gs = document.getElementById('game-screen');
+  const review = data.review;
+  const isLawyer = data.lawyerPeerId === myPeerId;
+
+  gs.innerHTML = `
+    <div class="round-info">EL TRIBUNAL &middot; Caso ${data.roundNum + 1} / ${data.totalRounds}</div>
+    <div class="tribunal-card">
+      <div class="tribunal-role ${isLawyer ? 'lawyer' : 'jury'}">${isLawyer ? '&#9878;&#65039; Eres el ABOGADO DEFENSOR!' : '&#9878;&#65039; Abogado: ' + escapeHtml(data.lawyerName)}</div>
+      <div style="font-size:0.85rem;color:var(--muted);margin-bottom:12px;">${escapeHtml(review.place_name)}</div>
+      <img style="width:100%;border-radius:12px;max-height:180px;object-fit:cover;margin-bottom:12px;" src="${escapeAttr(review.place_image)}" alt="" ${imgErrorHandler('&#127869;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+      <div style="font-style:italic;color:var(--accent);font-weight:600;font-size:0.9rem;">Resena de 1&#11088;:</div>
+      <div class="card-review">${escapeHtml(review.review_text)}</div>
+    </div>
+    <div class="tribunal-timer" id="tribunalTimer">30</div>
+    <div style="color:var(--muted);font-size:0.85rem;">${isLawyer ? 'Defiende el restaurante!' : 'Escucha la defensa...'}</div>
+  `;
+}
+
+function renderPlayerTribunalVote(data) {
+  showScreen('game-screen');
+  const gs = document.getElementById('game-screen');
+  const isLawyer = data.lawyerPeerId === myPeerId;
+
+  if (isLawyer) {
+    gs.innerHTML = `
+      <div class="round-info">EL TRIBUNAL &middot; VOTACION</div>
+      <div class="result-banner neutral" style="margin-top:20px;">Eres el abogado. Espera el veredicto del jurado...</div>
+    `;
+  } else {
+    gs.innerHTML = `
+      <div class="round-info">EL TRIBUNAL &middot; VOTACION</div>
+      <div style="text-align:center;margin-bottom:16px;">
+        <div style="font-size:1.1rem;font-weight:700;">Veredicto sobre ${escapeHtml(data.placeName)}</div>
+        <div style="color:var(--muted);font-size:0.85rem;">Abogado: ${escapeHtml(data.lawyerName)}</div>
+      </div>
+      <div class="vote-buttons">
+        <button class="vote-btn guilty" onclick="playerTribunalVote('culpable')">&#128308; Culpable<br><small>Javier tenia razon</small></button>
+        <button class="vote-btn innocent" onclick="playerTribunalVote('inocente')">&#128994; Inocente<br><small>Merece mas</small></button>
+      </div>
+      <div class="answer-tracker" id="answerTracker"></div>
+    `;
+  }
+}
+
+function playerTribunalVote(vote) {
+  if (playerAnswered) return;
+  playerAnswered = true;
+  sendToHost({ type: 'tribunal-vote', vote });
+  disableHostInputs(); // reuse — disables buttons
+  document.querySelectorAll('.vote-btn').forEach(btn => {
+    if ((vote === 'culpable' && btn.classList.contains('guilty')) || (vote === 'inocente' && btn.classList.contains('innocent'))) {
+      btn.classList.add('selected');
+    }
+  });
+}
+
+function renderPlayerTribunalResult(data) {
+  renderHostTribunalResult(data);
+}
+
+// Handle tribunal timer broadcast on player side
+// (Already handled by the tribunal-timer message type which updates the timer element)
+
+// ============================================
+// SCOREBOARD
+// ============================================
+function showScoreboard() {
+  // Sort by score descending
+  const sorted = [...hostPlayers].sort((a, b) => b.score - a.score || a.drinks - b.drinks);
+
+  const scoresMsg = {
+    type: 'scores',
+    players: sorted.map(p => ({ name: p.name, score: p.score, drinks: p.drinks, peerId: p.peerId })),
+    mode: gameMode
+  };
+
+  broadcast(scoresMsg);
+  renderScoreboardScreen(scoresMsg);
+}
+
+function renderScoreboardScreen(data) {
+  showScreen('scoreboard-screen');
+  const el = document.getElementById('scoreboard-screen');
+  const modeNames = {
+    'swipe': 'Swipe It', 'rate': 'Rate It', 'where': 'Donde Estaba?',
+    'higher-lower': 'Mas o Menos', 'closest': 'La Escala de Javier',
+    'bingo': 'Javier Bingo', 'tribunal': 'El Tribunal de Javier'
+  };
+
+  const rankEmojis = ['&#129351;', '&#129352;', '&#129353;'];
+
+  el.innerHTML = `
+    <div style="font-size:3rem;margin-bottom:8px;">&#127942;</div>
+    <div class="sb-title">Puntuaciones</div>
+    <div class="sb-subtitle">${modeNames[data.mode] || data.mode}</div>
+    <div class="sb-list">
+      ${data.players.map((p, i) => `
+        <div class="sb-row ${i === 0 ? 'first' : ''}">
+          <div class="sb-rank">${i < 3 ? rankEmojis[i] : (i + 1)}</div>
+          <div class="sb-player-info">
+            <div class="sb-player-name">${escapeHtml(p.name)} ${p.peerId === myPeerId ? '(tu)' : ''}</div>
+            <div class="sb-player-drinks">&#127866; ${p.drinks} tragos</div>
+          </div>
+          <div class="sb-score">${p.score} pts</div>
+        </div>
+      `).join('')}
+    </div>
+    ${isHost ? `
+      <div style="display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;">
+        <button class="big-btn primary" onclick="showModeSelect()">Otro Juego</button>
+        <button class="big-btn secondary" onclick="backToLobby()">Volver al Lobby</button>
+      </div>
+    ` : `
+      <div class="waiting-msg">El host elige el siguiente juego...</div>
+    `}
+  `;
+
+  if (data.players.length > 0 && data.players[0].peerId === myPeerId) {
+    showConfetti();
+  }
+}
+
+function renderPlayerScoreboard(data) {
+  renderScoreboardScreen(data);
+}
+
+function backToLobby() {
+  broadcast({ type: 'return-lobby', players: hostPlayers.map(p => ({ name: p.name, score: p.score, drinks: p.drinks, disconnected: p.disconnected, peerId: p.peerId })) });
+  renderLobby();
+}
+
+// ============================================
+// RENDER CURRENT VIEW (for reconnection)
+// ============================================
+function renderCurrentView() {
+  // Just re-render lobby if we're in lobby
+  const activeScreen = document.querySelector('.screen.active');
+  if (activeScreen && activeScreen.id === 'lobby-screen' && isHost) {
+    renderLobby();
+  }
+}
+
+// ============================================
+// EFFECTS
+// ============================================
+function showDrinkOverlay() {
+  const overlay = document.createElement('div');
+  overlay.className = 'drink-overlay';
+  overlay.innerHTML = `<div class="drink-emoji">&#127866;</div><div class="drink-text">BEBE!</div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.remove(), 1200);
+}
+
+function showConfetti() {
+  const container = document.createElement('div');
+  container.className = 'confetti-container';
+  document.body.appendChild(container);
+  const colors = ['#ff2d78','#7b2dff','#00f0ff','#ffd700','#00e676','#ff6b35','#ff4ecb'];
+  for (let i = 0; i < 60; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.left = Math.random() * 100 + 'vw';
+    piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.width = (Math.random() * 8 + 5) + 'px';
+    piece.style.height = (Math.random() * 8 + 5) + 'px';
+    piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    piece.style.animationDuration = (Math.random() * 1.5 + 1.2) + 's';
+    piece.style.animationDelay = (Math.random() * 0.5) + 's';
+    container.appendChild(piece);
+  }
+  setTimeout(() => container.remove(), 2500);
+}
+
+// ============================================
+// INIT: Check for room code in URL hash
+// ============================================
+window.addEventListener('DOMContentLoaded', () => {
+  const hash = location.hash.replace('#', '').trim();
+  if (hash.length === 4) {
+    document.getElementById('roomCodeInput').value = hash.toUpperCase();
+  }
+});
+
+// Update tribunal timer on player side
+const _origHandlePlayerMessage = handlePlayerMessage;
+handlePlayerMessage = function(msg) {
+  if (msg.type === 'tribunal-timer') {
+    const el = document.getElementById('tribunalTimer');
+    if (el) el.textContent = msg.time;
+    return;
+  }
+  _origHandlePlayerMessage(msg);
+};
+</script>
+</body>
+</html>

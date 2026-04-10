@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Javi's Drinking Game</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a1a;
+    --card: #16162a;
+    --accent: #ff2d78;
+    --accent2: #7b2dff;
+    --neon: #00f0ff;
+    --gold: #ffd700;
+    --green: #00e676;
+    --text: #f0f0f0;
+    --muted: #8888aa;
+    --radius: 16px;
+  }
+
+  body {
+    font-family: 'Poppins', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ---- HEADER BAR ---- */
+  .header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px;
+    background: rgba(10,10,26,0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .header .logo { font-weight: 900; font-size: 1.1rem; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .drink-counter {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255,45,120,0.15); border: 1px solid rgba(255,45,120,0.3);
+    padding: 6px 14px; border-radius: 30px; font-weight: 700; font-size: 1rem;
+  }
+  .drink-counter .num { color: var(--accent); font-size: 1.2rem; }
+  .score-counter {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.3);
+    padding: 6px 14px; border-radius: 30px; font-weight: 700; font-size: 1rem;
+  }
+  .score-counter .num { color: var(--green); font-size: 1.2rem; }
+  .header-stats { display: flex; gap: 10px; align-items: center; }
+  .back-btn {
+    background: none; border: none; color: var(--muted); font-size: 1.4rem; cursor: pointer; padding: 4px 8px;
+  }
+  .back-btn:hover { color: var(--text); }
+
+  /* ---- SCREENS ---- */
+  .screen { display: none; padding-top: 72px; min-height: 100dvh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ---- START SCREEN ---- */
+  #start-screen {
+    align-items: center; justify-content: center; text-align: center; padding: 72px 24px 40px;
+    background: radial-gradient(ellipse at 50% 30%, rgba(123,45,255,0.15) 0%, transparent 70%),
+                radial-gradient(ellipse at 20% 80%, rgba(255,45,120,0.1) 0%, transparent 50%);
+  }
+  .hero-photo {
+    width: 160px; height: 160px; border-radius: 50%; object-fit: cover; object-position: center top;
+    margin-bottom: 12px; border: 3px solid var(--accent);
+    box-shadow: 0 0 40px rgba(255,45,120,0.3), 0 0 80px rgba(123,45,255,0.15);
+    animation: float 3s ease-in-out infinite;
+  }
+  .hero-emoji { font-size: 4rem; margin-bottom: 8px; animation: float 3s ease-in-out infinite; }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+  .hero-title { font-size: 2.4rem; font-weight: 900; line-height: 1.1; margin-bottom: 4px; }
+  .hero-title .accent { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero-sub { color: var(--muted); font-size: 0.95rem; margin-bottom: 36px; }
+  .hero-sub strong { color: var(--neon); }
+  .mode-grid { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 400px; }
+  .mode-card {
+    background: var(--card); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius); padding: 20px; text-align: left; cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .mode-card:hover, .mode-card:active {
+    transform: scale(1.02); border-color: var(--accent);
+    box-shadow: 0 0 30px rgba(255,45,120,0.15);
+  }
+  .mode-card .mode-icon { font-size: 1.6rem; margin-bottom: 8px; }
+  .mode-card .mode-name { font-weight: 700; font-size: 1.15rem; margin-bottom: 4px; }
+  .mode-card .mode-desc { color: var(--muted); font-size: 0.82rem; line-height: 1.4; }
+  .mode-card .mode-badge {
+    position: absolute; top: 12px; right: 12px;
+    font-size: 0.7rem; font-weight: 700; padding: 3px 8px; border-radius: 8px;
+    background: rgba(255,45,120,0.2); color: var(--accent);
+  }
+
+  /* ---- GAME SCREEN ---- */
+  #game-screen { padding: 72px 16px 24px; align-items: center; }
+  .round-info { color: var(--muted); font-size: 0.8rem; margin-bottom: 12px; font-weight: 600; }
+  .game-card {
+    width: 100%; max-width: 440px;
+    background: var(--card); border-radius: var(--radius);
+    border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden; position: relative;
+    animation: cardIn 0.4s cubic-bezier(0.16,1,0.3,1);
+  }
+  @keyframes cardIn { from { opacity:0; transform: translateY(30px) scale(0.96); } to { opacity:1; transform: none; } }
+  .card-image {
+    width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block;
+    background: #1a1a2e;
+  }
+  .card-body { padding: 20px; }
+  .card-review {
+    font-size: 0.92rem; line-height: 1.55; color: var(--text);
+    margin-bottom: 16px; max-height: 150px; overflow-y: auto;
+    font-style: italic; position: relative;
+  }
+  .card-review::before { content: '\201C'; font-size: 2rem; color: var(--accent); line-height: 1; margin-right: 4px; vertical-align: -6px; }
+  .card-place-name {
+    font-weight: 700; font-size: 1rem; margin-bottom: 4px;
+  }
+  .card-place-name.blurred {
+    filter: blur(8px); user-select: none; pointer-events: none;
+  }
+  .card-address { color: var(--muted); font-size: 0.78rem; }
+  .card-stars { margin-top: 8px; }
+  .card-stars .star { font-size: 1.3rem; margin-right: 2px; }
+  .card-stars .star.filled { color: var(--gold); }
+  .card-stars .star.empty { color: #333; }
+  .card-prompt {
+    text-align: center; color: var(--neon); font-weight: 700; font-size: 0.9rem;
+    margin: 16px 0 12px; letter-spacing: 0.03em;
+  }
+
+  /* ---- OPTIONS ---- */
+  .options { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .opt-btn {
+    width: 100%; padding: 16px 20px; border: 2px solid rgba(255,255,255,0.08);
+    border-radius: 12px; background: rgba(255,255,255,0.03);
+    color: var(--text); font-family: inherit; font-size: 0.95rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; text-align: left;
+  }
+  .opt-btn:hover { border-color: var(--neon); background: rgba(0,240,255,0.05); }
+  .opt-btn:active { transform: scale(0.98); }
+  .opt-btn.correct { border-color: var(--green); background: rgba(0,230,118,0.15); color: var(--green); }
+  .opt-btn.wrong { border-color: var(--accent); background: rgba(255,45,120,0.15); color: var(--accent); }
+  .opt-btn.reveal { border-color: var(--green); background: rgba(0,230,118,0.08); }
+  .opt-btn:disabled { cursor: default; opacity: 0.85; }
+
+  /* ---- STAR PICKER ---- */
+  .star-picker { display: flex; gap: 8px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+  .star-pick {
+    width: 56px; height: 56px; border-radius: 14px; border: 2px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; font-weight: 900; color: var(--gold); cursor: pointer;
+    transition: all 0.2s; font-family: inherit;
+  }
+  .star-pick:hover { border-color: var(--gold); background: rgba(255,215,0,0.1); transform: scale(1.08); }
+  .star-pick:active { transform: scale(0.95); }
+  .star-pick.correct { border-color: var(--green); background: rgba(0,230,118,0.2); color: var(--green); }
+  .star-pick.wrong { border-color: var(--accent); background: rgba(255,45,120,0.2); color: var(--accent); }
+  .star-pick.reveal { border-color: var(--gold); background: rgba(255,215,0,0.15); }
+  .star-pick:disabled { cursor: default; }
+
+  /* ---- RESULT BANNER ---- */
+  .result-banner {
+    margin-top: 16px; padding: 16px 20px; border-radius: 12px; text-align: center;
+    font-weight: 700; font-size: 1rem; width: 100%; max-width: 440px;
+    animation: bannerIn 0.35s cubic-bezier(0.16,1,0.3,1);
+  }
+  @keyframes bannerIn { from { opacity:0; transform: scale(0.9); } to { opacity:1; transform: none; } }
+  .result-banner.success { background: rgba(0,230,118,0.15); color: var(--green); border: 1px solid rgba(0,230,118,0.3); }
+  .result-banner.fail { background: rgba(255,45,120,0.15); color: var(--accent); border: 1px solid rgba(255,45,120,0.3); }
+  .result-banner .result-detail { font-weight: 400; font-size: 0.82rem; color: var(--muted); margin-top: 6px; }
+  .next-btn {
+    margin-top: 16px; padding: 14px 40px; border: none; border-radius: 30px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff; font-family: inherit; font-size: 1rem; font-weight: 700;
+    cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 24px rgba(255,45,120,0.3);
+  }
+  .next-btn:hover { transform: scale(1.04); }
+  .next-btn:active { transform: scale(0.97); }
+
+  /* ---- DRINK OVERLAY ---- */
+  .drink-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    background: rgba(10,10,26,0.88); backdrop-filter: blur(8px);
+    animation: drinkIn 0.3s ease-out;
+    pointer-events: none;
+  }
+  @keyframes drinkIn { from { opacity: 0; } to { opacity: 1; } }
+  .drink-overlay .drink-text {
+    font-size: 3.5rem; font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), #ff6b35);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    animation: drinkShake 0.5s ease-in-out;
+  }
+  .drink-overlay .drink-emoji { font-size: 4rem; margin-bottom: 12px; animation: drinkBounce 0.6s ease; }
+  @keyframes drinkShake {
+    0%,100%{transform:translateX(0) rotate(0)} 15%{transform:translateX(-12px) rotate(-4deg)}
+    30%{transform:translateX(10px) rotate(3deg)} 45%{transform:translateX(-8px) rotate(-2deg)}
+    60%{transform:translateX(6px) rotate(1deg)} 75%{transform:translateX(-3px) rotate(0)}
+  }
+  @keyframes drinkBounce { 0%{transform:scale(0)} 50%{transform:scale(1.3)} 100%{transform:scale(1)} }
+
+  /* ---- CONFETTI ---- */
+  .confetti-container { position: fixed; inset: 0; z-index: 200; pointer-events: none; overflow: hidden; }
+  .confetti-piece {
+    position: absolute; width: 10px; height: 10px; top: -20px;
+    animation: confettiFall linear forwards;
+  }
+  @keyframes confettiFall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* ---- END SCREEN ---- */
+  #end-screen {
+    align-items: center; justify-content: center; text-align: center; padding: 72px 24px 40px;
+    background: radial-gradient(ellipse at 50% 40%, rgba(123,45,255,0.12) 0%, transparent 60%);
+  }
+  .end-emoji { font-size: 4rem; margin-bottom: 12px; }
+  .end-title { font-size: 2rem; font-weight: 900; margin-bottom: 8px; }
+  .end-stats { color: var(--muted); font-size: 1rem; margin-bottom: 8px; }
+  .end-stats .big { font-size: 2.4rem; font-weight: 900; display: block; margin: 4px 0; }
+  .end-stats .big.drinks { color: var(--accent); }
+  .end-stats .big.score { color: var(--green); }
+  .end-buttons { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; width: 100%; max-width: 320px; }
+  .end-btn {
+    padding: 14px; border-radius: 14px; font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; border: none; transition: transform 0.2s;
+  }
+  .end-btn:active { transform: scale(0.96); }
+  .end-btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+  .end-btn.secondary { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid rgba(255,255,255,0.1); }
+
+  /* ---- PROGRESS BAR ---- */
+  .progress-bar {
+    width: 100%; max-width: 440px; height: 4px; background: rgba(255,255,255,0.06);
+    border-radius: 2px; margin-bottom: 16px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px; transition: width 0.4s ease;
+  }
+
+  /* ---- UTILITIES ---- */
+  .img-placeholder {
+    width: 100%; aspect-ratio: 4/3; background: linear-gradient(135deg, #1a1a2e, #252545);
+    display: flex; align-items: center; justify-content: center; font-size: 2rem; color: var(--muted);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+  /* Mobile adjustments */
+  @media (max-width: 400px) {
+    .hero-title { font-size: 2rem; }
+    .drink-overlay .drink-text { font-size: 2.8rem; }
+    .card-body { padding: 16px; }
+    .star-pick { width: 50px; height: 50px; font-size: 1.1rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header" id="header">
+  <button class="back-btn" id="backBtn" style="display:none;" onclick="goHome()">&larr;</button>
+  <div class="logo">REVIEW ROULETTE</div>
+  <div class="header-stats" id="headerStats" style="display:none;">
+    <div class="score-counter"><span class="num" id="scoreNum">0</span> &#10003;</div>
+    <div class="drink-counter">&#127866; <span class="num" id="drinkNum">0</span></div>
+  </div>
+</div>
+
+<!-- START SCREEN -->
+<div class="screen active" id="start-screen">
+  <img src="javi-negro-wp.png" alt="Javier" class="hero-photo">
+  <h1 class="hero-title">
+    <span class="accent">Javi's</span><br>Review Roulette
+  </h1>
+  <p class="hero-sub">
+    <strong>191 reseñas</strong> &middot; Local Guide Nivel 6<br>
+    ¿Se acuerda de sus propias opiniones?
+  </p>
+  <div class="mode-grid">
+    <div class="mode-card" onclick="startGame('swipe')">
+      <div class="mode-badge">191 RESEÑAS</div>
+      <div class="mode-icon">&#128203;</div>
+      <div class="mode-name">Swipe It</div>
+      <div class="mode-desc">Ve la reseña y la foto, adivina a qué sitio pertenece. Fallo = BEBE.</div>
+    </div>
+    <div class="mode-card" onclick="startGame('rate')">
+      <div class="mode-badge">1-5 ESTRELLAS</div>
+      <div class="mode-icon">&#11088;</div>
+      <div class="mode-name">Rate It</div>
+      <div class="mode-desc">Ve el sitio, adivina cuántas estrellas puso Javier. Fallas por 2+ = BEBE.</div>
+    </div>
+    <div class="mode-card" onclick="startGame('where')">
+      <div class="mode-badge">34 FOTOS</div>
+      <div class="mode-icon">&#127758;</div>
+      <div class="mode-name">¿Dónde estaba?</div>
+      <div class="mode-desc">Solo ves la foto de Javier. Adivina el país/ciudad. Fallo = BEBE.</div>
+    </div>
+  </div>
+</div>
+
+<!-- GAME SCREEN -->
+<div class="screen" id="game-screen"></div>
+
+<!-- END SCREEN -->
+<div class="screen" id="end-screen"></div>
+
+<script>
+// ---- STATE ----
+let allReviews = [];
+let gameReviews = [];
+let currentRound = 0;
+let totalRounds = 10;
+let score = 0;
+let drinks = 0;
+let currentMode = '';
+let answered = false;
+
+// ---- LOAD DATA ----
+async function loadData() {
+  try {
+    const res = await fetch('javier-reviews.json');
+    const data = await res.json();
+    allReviews = data.reviews;
+  } catch (e) {
+    console.error('Failed to load reviews:', e);
+  }
+}
+loadData();
+
+// ---- HELPERS ----
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function extractCountry(address) {
+  if (!address) return 'Unknown';
+  const parts = address.split(',').map(s => s.trim());
+  return parts[parts.length - 1] || 'Unknown';
+}
+
+function extractCity(address) {
+  if (!address) return 'Unknown';
+  const parts = address.split(',').map(s => s.trim());
+  // Try to get a meaningful city name
+  for (const p of parts) {
+    // Skip postal codes and very short strings
+    if (p.length > 2 && !/^\d+$/.test(p) && !/^\d{4,}/.test(p)) {
+      return p;
+    }
+  }
+  return parts[0] || 'Unknown';
+}
+
+function getCountryCity(address) {
+  const country = extractCountry(address);
+  const city = extractCity(address);
+  if (city === country) return country;
+  return `${city}, ${country}`;
+}
+
+// ---- NAVIGATION ----
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function goHome() {
+  showScreen('start-screen');
+  document.getElementById('backBtn').style.display = 'none';
+  document.getElementById('headerStats').style.display = 'none';
+  score = 0; drinks = 0; currentRound = 0;
+}
+
+// ---- START GAME ----
+function startGame(mode) {
+  currentMode = mode;
+  score = 0; drinks = 0; currentRound = 0; answered = false;
+  updateCounters();
+
+  document.getElementById('backBtn').style.display = '';
+  document.getElementById('headerStats').style.display = 'flex';
+
+  // Prepare reviews based on mode
+  let pool = [];
+  if (mode === 'where') {
+    pool = allReviews.filter(r => r.review_photos && r.review_photos.length > 0);
+    totalRounds = Math.min(10, pool.length);
+  } else {
+    // Prioritize Italian reviews and reviews with photos
+    const italian = allReviews.filter(r => r.address && /Ital/i.test(r.address));
+    const withPhotos = allReviews.filter(r => r.review_photos && r.review_photos.length > 0 && !/Ital/i.test(r.address || ''));
+    const rest = allReviews.filter(r => !(r.review_photos && r.review_photos.length > 0) && !/Ital/i.test(r.address || ''));
+    pool = [...shuffle(italian), ...shuffle(withPhotos), ...shuffle(rest)];
+    totalRounds = 10;
+  }
+
+  gameReviews = shuffle(pool).slice(0, totalRounds);
+  showScreen('game-screen');
+  renderRound();
+}
+
+function updateCounters() {
+  document.getElementById('scoreNum').textContent = score;
+  document.getElementById('drinkNum').textContent = drinks;
+}
+
+// ---- RENDER ROUND ----
+function renderRound() {
+  answered = false;
+  if (currentRound >= totalRounds) {
+    renderEndScreen();
+    return;
+  }
+  const review = gameReviews[currentRound];
+  const gs = document.getElementById('game-screen');
+
+  if (currentMode === 'swipe') renderSwipeRound(gs, review);
+  else if (currentMode === 'rate') renderRateRound(gs, review);
+  else if (currentMode === 'where') renderWhereRound(gs, review);
+}
+
+// ---- MODE 1: SWIPE IT ----
+function renderSwipeRound(container, review) {
+  const options = generatePlaceOptions(review);
+  container.innerHTML = `
+    <div class="round-info">RONDA ${currentRound + 1} / ${totalRounds}</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${(currentRound / totalRounds) * 100}%"></div></div>
+    <div class="game-card">
+      <img class="card-image" src="${escapeAttr(review.place_image)}" alt="Place" onerror="this.outerHTML='<div class=img-placeholder>&#127869;</div>'" crossorigin="anonymous" referrerpolicy="no-referrer">
+      <div class="card-body">
+        <div class="card-review">${escapeHtml(review.review_text || 'No review text')}</div>
+        <div class="card-prompt">&#128270; ¿QUÉ SITIO ES ESTE?</div>
+      </div>
+    </div>
+    <div class="options" id="optionsContainer">
+      ${options.map((opt, i) => `
+        <button class="opt-btn" data-idx="${i}">${escapeHtml(opt)}</button>
+      `).join('')}
+    </div>
+  `;
+  // Bind via event listeners to avoid escaping issues
+  const correctName = review.place_name;
+  container.querySelectorAll('#optionsContainer .opt-btn').forEach(btn => {
+    btn.addEventListener('click', () => answerSwipe(parseInt(btn.dataset.idx), correctName));
+  });
+}
+
+function generatePlaceOptions(review) {
+  const correct = review.place_name;
+  const others = allReviews
+    .filter(r => r.place_name !== correct)
+    .map(r => r.place_name);
+  const wrongs = shuffle(others).slice(0, 3);
+  const opts = shuffle([correct, ...wrongs]);
+  return opts;
+}
+
+function answerSwipe(idx, correctName) {
+  if (answered) return;
+  answered = true;
+  const btns = document.querySelectorAll('#optionsContainer .opt-btn');
+  const chosen = btns[idx].textContent.trim();
+  const isCorrect = chosen === correctName;
+
+  btns.forEach(btn => {
+    btn.disabled = true;
+    if (btn.textContent.trim() === correctName) btn.classList.add('correct');
+  });
+
+  if (!isCorrect) {
+    btns[idx].classList.add('wrong');
+    drinks++;
+    showDrinkOverlay();
+  } else {
+    score++;
+    showConfetti();
+  }
+  updateCounters();
+  showRevealAndNext();
+}
+
+// ---- MODE 2: RATE IT ----
+function renderRateRound(container, review) {
+  const actual = review.stars;
+  container.innerHTML = `
+    <div class="round-info">RONDA ${currentRound + 1} / ${totalRounds}</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${(currentRound / totalRounds) * 100}%"></div></div>
+    <div class="game-card">
+      <img class="card-image" src="${escapeAttr(review.place_image)}" alt="Place" onerror="this.outerHTML='<div class=img-placeholder>&#127869;</div>'" crossorigin="anonymous" referrerpolicy="no-referrer">
+      <div class="card-body">
+        <div class="card-place-name">${escapeHtml(review.place_name)}</div>
+        <div class="card-address">${escapeHtml(review.address || '')}</div>
+        <div class="card-prompt">&#11088; ¿QUÉ NOTA LE PUSO JAVIER?</div>
+      </div>
+    </div>
+    <div class="star-picker" id="starPicker">
+      ${[1,2,3,4,5].map(n => `
+        <button class="star-pick" data-val="${n}">${n} &#11088;</button>
+      `).join('')}
+    </div>
+  `;
+  container.querySelectorAll('#starPicker .star-pick').forEach(btn => {
+    btn.addEventListener('click', () => answerRate(parseInt(btn.dataset.val), actual));
+  });
+}
+
+function answerRate(guess, actual) {
+  if (answered) return;
+  answered = true;
+  const diff = Math.abs(guess - actual);
+  const isCorrect = diff <= 1;
+  const btns = document.querySelectorAll('#starPicker .star-pick');
+
+  btns.forEach((btn) => {
+    btn.disabled = true;
+    const val = parseInt(btn.dataset.val);
+    if (val === actual) btn.classList.add('reveal');
+    if (val === guess && !isCorrect) btn.classList.add('wrong');
+    if (val === guess && isCorrect) btn.classList.add('correct');
+  });
+
+  if (!isCorrect) {
+    drinks++;
+    showDrinkOverlay();
+  } else {
+    score++;
+    showConfetti();
+  }
+  updateCounters();
+
+  // Show review text as reveal
+  const review = gameReviews[currentRound];
+  const gs = document.getElementById('game-screen');
+  const banner = document.createElement('div');
+  banner.className = `result-banner ${isCorrect ? 'success' : 'fail'}`;
+  const reviewSnippet = (review.review_text || '').slice(0, 120);
+  const ellipsis = (review.review_text || '').length > 120 ? '...' : '';
+  banner.innerHTML = `
+    ${isCorrect ? '&#10004; ' + (diff === 0 ? '¡CLAVADO!' : '¡Casi! (a 1 estrella)') : '&#10008; ¡BEBE! Dijiste ' + guess + '&#11088;, era ' + actual + '&#11088;'}
+    <div class="result-detail" style="margin-top:8px;font-style:italic;">"${escapeHtml(reviewSnippet)}${ellipsis}"</div>
+  `;
+  gs.appendChild(banner);
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'next-btn';
+  nextBtn.textContent = currentRound + 1 >= totalRounds ? 'Ver Resultados' : 'Siguiente Ronda';
+  nextBtn.onclick = () => { currentRound++; renderRound(); };
+  gs.appendChild(nextBtn);
+}
+
+// ---- MODE 3: WHERE WAS I? ----
+function renderWhereRound(container, review) {
+  const photo = review.review_photos[Math.floor(Math.random() * review.review_photos.length)];
+  const correctLabel = getCountryCity(review.address);
+  const options = generateLocationOptions(review);
+
+  container.innerHTML = `
+    <div class="round-info">RONDA ${currentRound + 1} / ${totalRounds}</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${(currentRound / totalRounds) * 100}%"></div></div>
+    <div class="game-card">
+      <img class="card-image" src="${escapeAttr(photo)}" alt="Javi's photo" onerror="this.outerHTML='<div class=img-placeholder>&#128247;</div>'" crossorigin="anonymous" referrerpolicy="no-referrer">
+      <div class="card-body">
+        <div class="card-prompt">&#127758; ¿DÓNDE ESTABA JAVIER?</div>
+      </div>
+    </div>
+    <div class="options" id="optionsContainer">
+      ${options.map((opt, i) => `
+        <button class="opt-btn" data-idx="${i}">${escapeHtml(opt)}</button>
+      `).join('')}
+    </div>
+  `;
+  container.querySelectorAll('#optionsContainer .opt-btn').forEach(btn => {
+    btn.addEventListener('click', () => answerWhere(parseInt(btn.dataset.idx), correctLabel));
+  });
+}
+
+function generateLocationOptions(review) {
+  const correct = getCountryCity(review.address);
+  const allLocations = [...new Set(allReviews.map(r => getCountryCity(r.address)))];
+  const wrongs = shuffle(allLocations.filter(l => l !== correct)).slice(0, 3);
+  return shuffle([correct, ...wrongs]);
+}
+
+function answerWhere(idx, correctLabel) {
+  if (answered) return;
+  answered = true;
+  const btns = document.querySelectorAll('#optionsContainer .opt-btn');
+  const chosen = btns[idx].textContent.trim();
+  const isCorrect = chosen === correctLabel;
+
+  btns.forEach(btn => {
+    btn.disabled = true;
+    if (btn.textContent.trim() === correctLabel) btn.classList.add('correct');
+  });
+
+  if (!isCorrect) {
+    btns[idx].classList.add('wrong');
+    drinks++;
+    showDrinkOverlay();
+  } else {
+    score++;
+    showConfetti();
+  }
+  updateCounters();
+
+  // Reveal place name
+  const review = gameReviews[currentRound];
+  const gs = document.getElementById('game-screen');
+  const banner = document.createElement('div');
+  banner.className = `result-banner ${isCorrect ? 'success' : 'fail'}`;
+  banner.innerHTML = `
+    ${isCorrect ? '&#10004; ¡CORRECTO!' : '&#10008; ¡BEBE!'}
+    <div class="result-detail">${escapeHtml(review.place_name)}<br>${escapeHtml(review.address || '')}</div>
+  `;
+  gs.appendChild(banner);
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'next-btn';
+  nextBtn.textContent = currentRound + 1 >= totalRounds ? 'Ver Resultados' : 'Siguiente Ronda';
+  nextBtn.onclick = () => { currentRound++; renderRound(); };
+  gs.appendChild(nextBtn);
+}
+
+// ---- SHARED: reveal + next for swipe mode ----
+function showRevealAndNext() {
+  const review = gameReviews[currentRound];
+  const gs = document.getElementById('game-screen');
+  const chosen = document.querySelector('#optionsContainer .opt-btn.wrong') || document.querySelector('#optionsContainer .opt-btn.correct');
+  const isCorrect = chosen && chosen.classList.contains('correct');
+
+  const banner = document.createElement('div');
+  banner.className = `result-banner ${isCorrect ? 'success' : 'fail'}`;
+  banner.innerHTML = `
+    ${isCorrect ? '&#10004; ¡CORRECTO!' : '&#10008; ¡BEBE!'}
+    <div class="result-detail">${escapeHtml(review.place_name)} &middot; ${escapeHtml(review.address || '')}</div>
+  `;
+  gs.appendChild(banner);
+
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'next-btn';
+  nextBtn.textContent = currentRound + 1 >= totalRounds ? 'Ver Resultados' : 'Siguiente Ronda';
+  nextBtn.onclick = () => { currentRound++; renderRound(); };
+  gs.appendChild(nextBtn);
+}
+
+// ---- END SCREEN ----
+function renderEndScreen() {
+  showScreen('end-screen');
+  const pct = Math.round((score / totalRounds) * 100);
+  let emoji = '&#128561;'; // shocked
+  let verdict = 'Brutal...';
+  if (pct >= 80) { emoji = '&#127881;'; verdict = '¡Javier la Máquina!'; }
+  else if (pct >= 60) { emoji = '&#128526;'; verdict = '¡No está mal, Local Guide!'; }
+  else if (pct >= 40) { emoji = '&#128517;'; verdict = '¿Ya vas pedo?'; }
+  else if (pct >= 20) { emoji = '&#129324;'; verdict = 'Ve bajando el ritmo...'; }
+
+  document.getElementById('end-screen').innerHTML = `
+    <div class="end-emoji">${emoji}</div>
+    <h2 class="end-title">${verdict}</h2>
+    <div class="end-stats">
+      Puntuación<span class="big score">${score} / ${totalRounds}</span>
+    </div>
+    <div class="end-stats">
+      Tragos bebidos<span class="big drinks">${drinks} &#127866;</span>
+    </div>
+    <div class="end-buttons">
+      <button class="end-btn primary" onclick="startGame('${currentMode}')">Jugar Otra Vez</button>
+      <button class="end-btn secondary" onclick="goHome()">Cambiar Modo</button>
+    </div>
+  `;
+
+  if (pct >= 60) showConfetti();
+}
+
+// ---- EFFECTS ----
+function showDrinkOverlay() {
+  const overlay = document.createElement('div');
+  overlay.className = 'drink-overlay';
+  overlay.innerHTML = `<div class="drink-emoji">&#127866;</div><div class="drink-text">¡BEBE!</div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.remove(), 1200);
+}
+
+function showConfetti() {
+  const container = document.createElement('div');
+  container.className = 'confetti-container';
+  document.body.appendChild(container);
+  const colors = ['#ff2d78','#7b2dff','#00f0ff','#ffd700','#00e676','#ff6b35','#ff4ecb'];
+  for (let i = 0; i < 60; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.left = Math.random() * 100 + 'vw';
+    piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.width = (Math.random() * 8 + 5) + 'px';
+    piece.style.height = (Math.random() * 8 + 5) + 'px';
+    piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    piece.style.animationDuration = (Math.random() * 1.5 + 1.2) + 's';
+    piece.style.animationDelay = (Math.random() * 0.5) + 's';
+    container.appendChild(piece);
+  }
+  setTimeout(() => container.remove(), 2500);
+}
+
+// ---- UTIL ----
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+function escapeAttr(str) {
+  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+</script>
+</body>
+</html>
