@@ -24,6 +24,17 @@
     --radius: 16px;
   }
 
+  :root.italia {
+    --bg: #0d1a0a;
+    --card: #1a2e16;
+    --accent: #e74c3c;
+    --accent2: #27ae60;
+    --neon: #f0f0f0;
+    --gold: #ffd700;
+    --green: #27ae60;
+    --muted: #7a9a6e;
+  }
+
   body {
     font-family: 'Poppins', sans-serif;
     background: var(--bg);
@@ -427,9 +438,37 @@
   }
 
   .hidden { display: none !important; }
+
+  /* ---- ITALIAN THEME OVERRIDES ---- */
+  .italia #landing-screen {
+    background: radial-gradient(ellipse at 50% 30%, rgba(39,174,96,0.15) 0%, transparent 70%),
+                radial-gradient(ellipse at 20% 80%, rgba(231,76,60,0.1) 0%, transparent 50%);
+  }
+  .italia .header { background: rgba(13,26,10,0.9); }
+  .italia .drink-overlay { background: rgba(13,26,10,0.88); }
+  .italia .hero-photo { border-color: var(--accent); box-shadow: 0 0 40px rgba(231,76,60,0.3), 0 0 80px rgba(39,174,96,0.15); }
+  .italia .opt-btn:hover { border-color: var(--green); background: rgba(39,174,96,0.05); }
+  .italia .mode-card:hover, .italia .mode-card:active { box-shadow: 0 0 30px rgba(39,174,96,0.2); }
+  .italia .next-btn, .italia .lobby-btn { box-shadow: 0 4px 24px rgba(231,76,60,0.3); }
+
+  /* ---- THEME TOGGLE ---- */
+  .theme-toggle {
+    position: fixed; bottom: 20px; right: 20px; z-index: 150;
+    width: 56px; height: 56px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.1);
+    background: var(--card); cursor: pointer;
+    font-size: 1.6rem; display: flex; align-items: center; justify-content: center;
+    transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .theme-toggle:hover { transform: scale(1.1); border-color: var(--accent); }
+  .theme-toggle:active { transform: scale(0.95); }
 </style>
 </head>
 <body>
+
+<!-- THEME TOGGLE -->
+<button class="theme-toggle" id="themeToggle" title="Tema Italia">🍕</button>
 
 <!-- HEADER -->
 <div class="header" id="header">
@@ -475,6 +514,16 @@
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
+// ---- THEME TOGGLE ----
+let isItalian = false;
+function getDrinkEmoji() { return isItalian ? '🍹' : '🍺'; }
+
+document.getElementById('themeToggle').addEventListener('click', () => {
+  isItalian = !isItalian;
+  document.documentElement.classList.toggle('italia', isItalian);
+  document.getElementById('themeToggle').textContent = isItalian ? '🍺' : '🍕';
+});
+
 // ============================================
 // STATE
 // ============================================
@@ -1707,7 +1756,7 @@ function renderHostReveal(data) {
     else if (r.correct && r.closest) status = '<span style="color:var(--green)">&#10004; +3 (mas cercano)</span>';
     else if (r.correct && r.safe) status = '<span style="color:var(--green)">&#10004; +1 (empate)</span>';
     else if (r.correct) status = `<span style="color:var(--green)">&#10004; +${r.points || 1}</span>`;
-    else if (r.drink || r.furthest) status = '<span style="color:var(--accent)">&#127866; BEBE!</span>';
+    else if (r.drink || r.furthest) status = `<span style="color:var(--accent)">${getDrinkEmoji()} BEBE!</span>`;
     else status = '<span style="color:var(--muted)">---</span>';
     return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;">
       <div class="player-avatar" style="background:${playerColor(i)};width:30px;height:30px;font-size:0.85rem;">${p.name.charAt(0).toUpperCase()}</div>
@@ -1793,7 +1842,7 @@ function renderPlayerReveal(data) {
   else if (myResult.correct && myResult.closest) msg = '&#127919; Mas cercano! +3 puntos';
   else if (myResult.correct && myResult.safe) msg = '&#10004; Empate! +1 punto';
   else if (myResult.correct) msg = `&#10004; Correcto! +${myResult.points || 1} punto${(myResult.points||1)>1?'s':''}`;
-  else if (myResult.drink || myResult.furthest) msg = '&#127866; BEBE!';
+  else if (myResult.drink || myResult.furthest) msg = `${getDrinkEmoji()} BEBE!`;
   else msg = '---';
 
   let infoHtml = '';
@@ -1938,10 +1987,10 @@ function renderBingoResult(data) {
 
   gs.innerHTML = `
     <div style="text-align:center;padding:40px 20px;">
-      <div style="font-size:4rem;margin-bottom:16px;">${iWon ? '&#127881;' : '&#127866;'}</div>
-      <div style="font-size:2rem;font-weight:900;margin-bottom:8px;">${iWon ? 'BINGO!' : 'BINGO!'}</div>
+      <div style="font-size:4rem;margin-bottom:16px;">${iWon ? '&#127881;' : getDrinkEmoji()}</div>
+      <div style="font-size:2rem;font-weight:900;margin-bottom:8px;">BINGO!</div>
       <div style="font-size:1.2rem;color:var(--gold);font-weight:700;margin-bottom:8px;">${escapeHtml(data.winner)} gana!</div>
-      <div style="color:var(--muted);font-size:0.9rem;">${iWon ? 'Los demas... BEBEN!' : 'Todos los demas beben &#127866;'}</div>
+      <div style="color:var(--muted);font-size:0.9rem;">${iWon ? 'Los demas... BEBEN!' : 'Todos los demas beben ' + getDrinkEmoji()}</div>
     </div>
   `;
 
@@ -2298,7 +2347,7 @@ function renderScoreboardScreen(data) {
           <div class="sb-rank">${i < 3 ? rankEmojis[i] : (i + 1)}</div>
           <div class="sb-player-info">
             <div class="sb-player-name">${escapeHtml(p.name)} ${p.peerId === myPeerId ? '(tu)' : ''}</div>
-            <div class="sb-player-drinks">&#127866; ${p.drinks} tragos</div>
+            <div class="sb-player-drinks">${getDrinkEmoji()} ${p.drinks} tragos</div>
           </div>
           <div class="sb-score">${p.score} pts</div>
         </div>
@@ -2345,7 +2394,7 @@ function renderCurrentView() {
 function showDrinkOverlay() {
   const overlay = document.createElement('div');
   overlay.className = 'drink-overlay';
-  overlay.innerHTML = `<div class="drink-emoji">&#127866;</div><div class="drink-text">BEBE!</div>`;
+  overlay.innerHTML = `<div class="drink-emoji">${getDrinkEmoji()}</div><div class="drink-text">BEBE!</div>`;
   document.body.appendChild(overlay);
   setTimeout(() => overlay.remove(), 1200);
 }

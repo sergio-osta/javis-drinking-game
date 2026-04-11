@@ -22,6 +22,19 @@
     --text: #f0f0f0;
     --muted: #8888aa;
     --radius: 16px;
+    --drink-emoji: '🍺';
+  }
+
+  :root.italia {
+    --bg: #0d1a0a;
+    --card: #1a2e16;
+    --accent: #e74c3c;
+    --accent2: #27ae60;
+    --neon: #f0f0f0;
+    --gold: #ffd700;
+    --green: #27ae60;
+    --muted: #7a9a6e;
+    --drink-emoji: '🍹';
   }
 
   body {
@@ -71,6 +84,31 @@
     background: radial-gradient(ellipse at 50% 30%, rgba(123,45,255,0.15) 0%, transparent 70%),
                 radial-gradient(ellipse at 20% 80%, rgba(255,45,120,0.1) 0%, transparent 50%);
   }
+  .italia #start-screen {
+    background: radial-gradient(ellipse at 50% 30%, rgba(39,174,96,0.15) 0%, transparent 70%),
+                radial-gradient(ellipse at 20% 80%, rgba(231,76,60,0.1) 0%, transparent 50%);
+  }
+  .italia .header { background: rgba(13,26,10,0.9); }
+  .italia .drink-counter { background: rgba(231,76,60,0.15); border-color: rgba(231,76,60,0.3); }
+  .italia .score-counter { background: rgba(39,174,96,0.12); border-color: rgba(39,174,96,0.3); }
+  .italia .mode-card:hover, .italia .mode-card:active { box-shadow: 0 0 30px rgba(39,174,96,0.2); }
+  .italia .hero-photo { border-color: var(--accent); box-shadow: 0 0 40px rgba(231,76,60,0.3), 0 0 80px rgba(39,174,96,0.15); }
+  .italia .next-btn { box-shadow: 0 4px 24px rgba(231,76,60,0.3); }
+  .italia .drink-overlay { background: rgba(13,26,10,0.88); }
+  .italia .opt-btn:hover { border-color: var(--green); background: rgba(39,174,96,0.05); }
+
+  /* ---- THEME TOGGLE ---- */
+  .theme-toggle {
+    position: fixed; bottom: 20px; right: 20px; z-index: 150;
+    width: 56px; height: 56px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.1);
+    background: var(--card); cursor: pointer;
+    font-size: 1.6rem; display: flex; align-items: center; justify-content: center;
+    transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .theme-toggle:hover { transform: scale(1.1); border-color: var(--accent); }
+  .theme-toggle:active { transform: scale(0.95); }
   .hero-photo {
     width: 160px; height: 160px; border-radius: 50%; object-fit: cover; object-position: center top;
     margin-bottom: 12px; border: 3px solid var(--accent);
@@ -276,6 +314,9 @@
 </head>
 <body>
 
+<!-- THEME TOGGLE -->
+<button class="theme-toggle" id="themeToggle" title="Tema Italia">🍕</button>
+
 <!-- HEADER -->
 <div class="header" id="header">
   <button class="back-btn" id="backBtn" style="display:none;" onclick="goHome()">&larr;</button>
@@ -325,6 +366,24 @@
 <div class="screen" id="end-screen"></div>
 
 <script>
+// ---- THEME TOGGLE ----
+let isItalian = false;
+function getDrinkEmoji() { return isItalian ? '🍹' : '🍺'; }
+
+document.getElementById('themeToggle').addEventListener('click', () => {
+  isItalian = !isItalian;
+  document.documentElement.classList.toggle('italia', isItalian);
+  document.getElementById('themeToggle').textContent = isItalian ? '🍺' : '🍕';
+  // Update drink counter emoji in header
+  const dc = document.querySelector('.drink-counter');
+  if (dc) {
+    const num = dc.querySelector('.num');
+    dc.innerHTML = '';
+    dc.textContent = getDrinkEmoji() + ' ';
+    dc.appendChild(num);
+  }
+});
+
 // ---- STATE ----
 let allReviews = [];
 let gameReviews = [];
@@ -684,7 +743,7 @@ function renderEndScreen() {
       Puntuación<span class="big score">${score} / ${totalRounds}</span>
     </div>
     <div class="end-stats">
-      Tragos bebidos<span class="big drinks">${drinks} &#127866;</span>
+      Tragos bebidos<span class="big drinks">${drinks} ${getDrinkEmoji()}</span>
     </div>
     <div class="end-buttons">
       <button class="end-btn primary" onclick="startGame('${currentMode}')">Jugar Otra Vez</button>
@@ -699,7 +758,7 @@ function renderEndScreen() {
 function showDrinkOverlay() {
   const overlay = document.createElement('div');
   overlay.className = 'drink-overlay';
-  overlay.innerHTML = `<div class="drink-emoji">&#127866;</div><div class="drink-text">¡BEBE!</div>`;
+  overlay.innerHTML = `<div class="drink-emoji">${getDrinkEmoji()}</div><div class="drink-text">¡BEBE!</div>`;
   document.body.appendChild(overlay);
   setTimeout(() => overlay.remove(), 1200);
 }
