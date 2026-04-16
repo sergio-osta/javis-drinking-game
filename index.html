@@ -369,7 +369,8 @@ const modeDefinitions = [
   { id: 'swipe', badge: '191 RESEÑAS', icon: '&#128203;', name: 'Swipe It', desc: 'Ve la reseña y la foto, adivina a qué sitio pertenece. Fallo = BEBE.' },
   { id: 'rate', badge: '1-5 ESTRELLAS', icon: '&#11088;', name: 'Rate It', desc: 'Ve el sitio, adivina cuántas estrellas puso Javier. Fallas por 2+ = BEBE.' },
   { id: 'where', badge: '34 FOTOS', icon: '&#127758;', name: '¿Dónde estaba?', desc: 'Solo ves la foto de Javier. Adivina el país/ciudad. Fallo = BEBE.' },
-  { id: 'owner-guess', badge: 'JAVIER vs MARÍA', icon: '&#129300;', name: '¿Quién lo escribió?', desc: 'Lee la reseña y adivina si es de Javier o de María. Fallo = BEBE.', requiresOverlap: true }
+  { id: 'owner-guess', badge: 'JAVIER vs MARÍA', icon: '&#129300;', name: '¿Quién lo escribió?', desc: 'Lee la reseña y adivina si es de Javier o de María. Fallo = BEBE.', requiresOverlap: true },
+  { id: 'review-match', badge: 'MISMO SITIO', icon: '&#127863;', name: '¿De quién es la review?', desc: 'Ambos visitaron el mismo sitio. Ve la reseña y nota, adivina de quién es. Fallo = BEBE.', requiresOverlap: true, requiresOverlapPlaces: true }
 ];
 function getDrinkEmoji() { return isItalian ? '🍹' : '🍺'; }
 function applyTheme() {
@@ -471,7 +472,11 @@ function goHome() {
 function renderModeCards() {
   const grid = document.getElementById('modeGrid');
   if (!grid) return;
-  const available = modeDefinitions.filter(mode => !mode.requiresOverlap || (overlapData && overlapData.game_pool && overlapData.game_pool.length > 0));
+  const available = modeDefinitions.filter(mode => {
+    if (mode.requiresOverlapPlaces) return overlapData && overlapData.overlap_places && overlapData.overlap_places.length > 0;
+    if (mode.requiresOverlap) return overlapData && overlapData.game_pool && overlapData.game_pool.length > 0;
+    return true;
+  });
   grid.innerHTML = available.map(mode => `
     <div class="mode-card" onclick="startGame('${mode.id}')">
       <div class="mode-badge">${mode.badge}</div>
@@ -496,7 +501,24 @@ function startGame(mode) {
 
   // Prepare reviews based on mode
   let pool = [];
-  if (mode === 'owner-guess') {
+  if (mode === 'review-match') {
+    // Build pool from overlap places: each place generates entries for each reviewer with text
+    pool = [];
+    for (const place of overlapData.overlap_places) {
+      if (place.javier_review && place.javier_review.review_text) {
+        pool.push({ place_name: place.place_name, address: place.address, place_image: place.place_image, place_search_url: place.place_search_url, stars: place.javier_review.stars, review_text: place.javier_review.review_text, reviewer: 'Javier' });
+      }
+      if (place.maria_review && place.maria_review.review_text) {
+        pool.push({ place_name: place.place_name, address: place.address, place_image: place.place_image, place_search_url: place.place_search_url, stars: place.maria_review.stars, review_text: place.maria_review.review_text, reviewer: 'María' });
+      }
+    }
+    pool = shuffle(pool);
+    totalRounds = Math.min(10, pool.length);
+    gameReviews = pool.slice(0, totalRounds);
+    showScreen('game-screen');
+    renderRound();
+    return;
+  } else if (mode === 'owner-guess') {
     // Use the game pool from overlap data (all reviews with text from both reviewers)
     pool = shuffle(overlapData.game_pool);
     totalRounds = Math.min(10, pool.length);
@@ -540,6 +562,7 @@ function renderRound() {
   else if (currentMode === 'rate') renderRateRound(gs, review);
   else if (currentMode === 'where') renderWhereRound(gs, review);
   else if (currentMode === 'owner-guess') renderOwnerGuessRound(gs, review);
+  else if (currentMode === 'review-match') renderReviewMatchRound(gs, review);
 }
 
 // ---- MODE 1: SWIPE IT ----
@@ -772,6 +795,70 @@ function renderOwnerGuessRound(container, review) {
 }
 
 function answerOwnerGuess(guess, correct) {
+  if (answered) return;
+  answered = true;
+  const isCorrect = guess === correct;
+  const btns = document.querySelectorAll('#optionsContainer .opt-btn');
+
+  btns.forEach(btn => {
+    btn.disabled = true;
+    if (btn.dataset.val === correct) btn.classList.add('correct');
+    if (btn.dataset.val === guess && !isCorrect) btn.classList.add('wrong');
+  });
+
+  if (!isCorrect) {
+    drinks++;
+    showDrinkOverlay();
+  } else {
+    score++;
+    showConfetti();
+  }
+  updateCounters();
+
+  const gs = document.getElementById('game-screen');
+  const banner = document.createElement('div');
+  banner.className = `result-banner ${isCorrect ? 'success' : 'fail'}`;
+  banner.innerHTML = `
+    ${isCorrect ? '&#10004; ¡CORRECTO!' : '&#10008; ¡BEBE! Era de ' + escapeHtml(correct)}
+  `;
+  gs.appendChild(banner);
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'next-btn';
+  nextBtn.textContent = currentRound + 1 >= totalRounds ? 'Ver Resultados' : 'Siguiente Ronda';
+  nextBtn.onclick = () => { currentRound++; renderRound(); };
+  gs.appendChild(nextBtn);
+}
+
+// ---- MODE 5: REVIEW MATCH (¿De quién es la review?) ----
+function renderReviewMatchRound(container, review) {
+  const starsHtml = [1,2,3,4,5].map(n =>
+    `<span class="star ${n <= review.stars ? 'filled' : 'empty'}">&#9733;</span>`
+  ).join('');
+
+  container.innerHTML = `
+    <div class="round-info">RONDA ${currentRound + 1} / ${totalRounds}</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${(currentRound / totalRounds) * 100}%"></div></div>
+    <div class="game-card">
+      <img class="card-image" src="${escapeAttr(review.place_image || '')}" alt="Place" onerror="this.outerHTML='<div class=img-placeholder>&#127869;</div>'" crossorigin="anonymous" referrerpolicy="no-referrer">
+      <div class="card-body">
+        <div class="card-place-name">${escapeHtml(review.place_name)}</div>
+        <div class="card-address">${escapeHtml(review.address || '')}</div>
+        <div class="card-stars">${starsHtml}</div>
+        <div class="card-review">${escapeHtml(review.review_text)}</div>
+        <div class="card-prompt">&#127863; ¿DE QUIÉN ES ESTA REVIEW?</div>
+      </div>
+    </div>
+    <div class="options" id="optionsContainer">
+      <button class="opt-btn" data-val="Javier">Javier Molina</button>
+      <button class="opt-btn" data-val="María">María Polo López</button>
+    </div>
+  `;
+  container.querySelectorAll('#optionsContainer .opt-btn').forEach(btn => {
+    btn.addEventListener('click', () => answerReviewMatch(btn.dataset.val, review.reviewer));
+  });
+}
+
+function answerReviewMatch(guess, correct) {
   if (answered) return;
   answered = true;
   const isCorrect = guess === correct;
