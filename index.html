@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="italia">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -97,18 +97,25 @@
   .italia .drink-overlay { background: rgba(13,26,10,0.88); }
   .italia .opt-btn:hover { border-color: var(--green); background: rgba(39,174,96,0.05); }
 
-  /* ---- THEME TOGGLE ---- */
-  .theme-toggle {
-    position: fixed; bottom: 20px; right: 20px; z-index: 150;
-    width: 56px; height: 56px; border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.1);
-    background: var(--card); cursor: pointer;
-    font-size: 1.6rem; display: flex; align-items: center; justify-content: center;
-    transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  /* ---- SETTINGS MENU ---- */
+  .header-actions { position: relative; display: flex; align-items: center; gap: 10px; }
+  .settings-btn {
+    width: 40px; height: 40px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04); color: var(--text); cursor: pointer; font-size: 1.1rem;
   }
-  .theme-toggle:hover { transform: scale(1.1); border-color: var(--accent); }
-  .theme-toggle:active { transform: scale(0.95); }
+  .settings-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 220px; padding: 10px;
+    background: rgba(22,22,42,0.96); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.35); backdrop-filter: blur(16px); display: none;
+  }
+  .italia .settings-menu { background: rgba(26,46,22,0.96); }
+  .settings-menu.open { display: block; }
+  .settings-item {
+    width: 100%; padding: 10px 12px; border: 0; background: transparent; color: var(--text);
+    text-align: left; border-radius: 10px; cursor: pointer; font: inherit; font-size: 0.92rem;
+  }
+  .settings-item:hover { background: rgba(255,255,255,0.06); }
+  .settings-item small { display: block; color: var(--muted); font-size: 0.72rem; margin-top: 2px; }
   .hero-photo {
     width: 160px; height: 160px; border-radius: 50%; object-fit: cover; object-position: center top;
     margin-bottom: 12px; border: 3px solid var(--accent);
@@ -314,16 +321,23 @@
 </head>
 <body>
 
-<!-- THEME TOGGLE -->
-<button class="theme-toggle" id="themeToggle" title="Tema Italia">🍕</button>
-
 <!-- HEADER -->
 <div class="header" id="header">
   <button class="back-btn" id="backBtn" style="display:none;" onclick="goHome()">&larr;</button>
   <div class="logo">REVIEW ROULETTE</div>
-  <div class="header-stats" id="headerStats" style="display:none;">
-    <div class="score-counter"><span class="num" id="scoreNum">0</span> &#10003;</div>
-    <div class="drink-counter">&#127866; <span class="num" id="drinkNum">0</span></div>
+  <div class="header-actions">
+    <div class="header-stats" id="headerStats" style="display:none;">
+      <div class="score-counter"><span class="num" id="scoreNum">0</span> &#10003;</div>
+      <div class="drink-counter"><span class="emoji">🍹</span> <span class="num" id="drinkNum">0</span></div>
+    </div>
+    <div class="settings-wrap">
+      <button class="settings-btn" id="settingsBtn" title="Ajustes">⚙️</button>
+      <div class="settings-menu" id="settingsMenu">
+        <button class="settings-item" id="themeMenuItem" onclick="toggleTheme()">Cambiar tema<small id="themeMenuHint">Pasar a tema neon</small></button>
+        <button class="settings-item" onclick="goHome()">Volver al inicio<small>Salir de la partida actual</small></button>
+        <button class="settings-item" onclick="switchExperience()">Ir a multijugador<small>Cambiar de app</small></button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -337,26 +351,7 @@
     <strong>191 reseñas</strong> &middot; Local Guide Nivel 6<br>
     ¿Se acuerda de sus propias opiniones?
   </p>
-  <div class="mode-grid">
-    <div class="mode-card" onclick="startGame('swipe')">
-      <div class="mode-badge">191 RESEÑAS</div>
-      <div class="mode-icon">&#128203;</div>
-      <div class="mode-name">Swipe It</div>
-      <div class="mode-desc">Ve la reseña y la foto, adivina a qué sitio pertenece. Fallo = BEBE.</div>
-    </div>
-    <div class="mode-card" onclick="startGame('rate')">
-      <div class="mode-badge">1-5 ESTRELLAS</div>
-      <div class="mode-icon">&#11088;</div>
-      <div class="mode-name">Rate It</div>
-      <div class="mode-desc">Ve el sitio, adivina cuántas estrellas puso Javier. Fallas por 2+ = BEBE.</div>
-    </div>
-    <div class="mode-card" onclick="startGame('where')">
-      <div class="mode-badge">34 FOTOS</div>
-      <div class="mode-icon">&#127758;</div>
-      <div class="mode-name">¿Dónde estaba?</div>
-      <div class="mode-desc">Solo ves la foto de Javier. Adivina el país/ciudad. Fallo = BEBE.</div>
-    </div>
-  </div>
+<div class="mode-grid" id="modeGrid"></div>
 </div>
 
 <!-- GAME SCREEN -->
@@ -366,26 +361,36 @@
 <div class="screen" id="end-screen"></div>
 
 <script>
-// ---- THEME TOGGLE ----
-let isItalian = false;
+// ---- SETTINGS / THEME ----
+let isItalian = true;
+let allReviews = [];
+let overlapData = null;
+const modeDefinitions = [
+  { id: 'swipe', badge: '191 RESEÑAS', icon: '&#128203;', name: 'Swipe It', desc: 'Ve la reseña y la foto, adivina a qué sitio pertenece. Fallo = BEBE.' },
+  { id: 'rate', badge: '1-5 ESTRELLAS', icon: '&#11088;', name: 'Rate It', desc: 'Ve el sitio, adivina cuántas estrellas puso Javier. Fallas por 2+ = BEBE.' },
+  { id: 'where', badge: '34 FOTOS', icon: '&#127758;', name: '¿Dónde estaba?', desc: 'Solo ves la foto de Javier. Adivina el país/ciudad. Fallo = BEBE.' },
+  { id: 'owner-guess', badge: 'JAVIER vs MARÍA', icon: '&#129300;', name: '¿Quién lo escribió?', desc: 'Lee la reseña y adivina si es de Javier o de María. Fallo = BEBE.', requiresOverlap: true }
+];
 function getDrinkEmoji() { return isItalian ? '🍹' : '🍺'; }
-
-document.getElementById('themeToggle').addEventListener('click', () => {
-  isItalian = !isItalian;
+function applyTheme() {
   document.documentElement.classList.toggle('italia', isItalian);
-  document.getElementById('themeToggle').textContent = isItalian ? '🍺' : '🍕';
-  // Update drink counter emoji in header
-  const dc = document.querySelector('.drink-counter');
-  if (dc) {
-    const num = dc.querySelector('.num');
-    dc.innerHTML = '';
-    dc.textContent = getDrinkEmoji() + ' ';
-    dc.appendChild(num);
-  }
+  const emoji = document.querySelector('.drink-counter .emoji');
+  if (emoji) emoji.textContent = getDrinkEmoji();
+  const hint = document.getElementById('themeMenuHint');
+  if (hint) hint.textContent = isItalian ? 'Pasar a tema neon' : 'Pasar a tema Italia';
+}
+function toggleTheme() { isItalian = !isItalian; applyTheme(); closeSettingsMenu(); }
+function closeSettingsMenu() { document.getElementById('settingsMenu').classList.remove('open'); }
+function switchExperience() { window.location.href = 'multiplayer.html'; }
+document.getElementById('settingsBtn').addEventListener('click', (event) => { event.stopPropagation(); document.getElementById('settingsMenu').classList.toggle('open'); });
+document.addEventListener('click', (event) => {
+  const menu = document.getElementById('settingsMenu');
+  const btn = document.getElementById('settingsBtn');
+  if (!menu.contains(event.target) && !btn.contains(event.target)) closeSettingsMenu();
 });
+applyTheme();
 
 // ---- STATE ----
-let allReviews = [];
 let gameReviews = [];
 let currentRound = 0;
 let totalRounds = 10;
@@ -397,9 +402,16 @@ let answered = false;
 // ---- LOAD DATA ----
 async function loadData() {
   try {
-    const res = await fetch('javier-reviews.json');
-    const data = await res.json();
-    allReviews = data.reviews;
+    const [javierRes, overlapRes] = await Promise.all([
+      fetch('javier-reviews.json'),
+      fetch('overlap-data.json').catch(() => null)
+    ]);
+    const javierData = await javierRes.json();
+    allReviews = javierData.reviews || javierData;
+    if (overlapRes && overlapRes.ok) {
+      overlapData = await overlapRes.json();
+    }
+    renderModeCards();
   } catch (e) {
     console.error('Failed to load reviews:', e);
   }
@@ -449,14 +461,32 @@ function showScreen(id) {
 }
 
 function goHome() {
+  closeSettingsMenu();
   showScreen('start-screen');
   document.getElementById('backBtn').style.display = 'none';
   document.getElementById('headerStats').style.display = 'none';
-  score = 0; drinks = 0; currentRound = 0;
+  score = 0; drinks = 0; currentRound = 0; currentMode = '';
 }
+
+function renderModeCards() {
+  const grid = document.getElementById('modeGrid');
+  if (!grid) return;
+  const available = modeDefinitions.filter(mode => !mode.requiresOverlap || (overlapData && overlapData.game_pool && overlapData.game_pool.length > 0));
+  grid.innerHTML = available.map(mode => `
+    <div class="mode-card" onclick="startGame('${mode.id}')">
+      <div class="mode-badge">${mode.badge}</div>
+      <div class="mode-icon">${mode.icon}</div>
+      <div class="mode-name">${mode.name}</div>
+      <div class="mode-desc">${mode.desc}</div>
+    </div>
+  `).join('');
+}
+renderModeCards();
 
 // ---- START GAME ----
 function startGame(mode) {
+  if (mode === 'owner-guess' && (!overlapData || !overlapData.game_pool || overlapData.game_pool.length === 0)) return;
+  closeSettingsMenu();
   currentMode = mode;
   score = 0; drinks = 0; currentRound = 0; answered = false;
   updateCounters();
@@ -466,7 +496,15 @@ function startGame(mode) {
 
   // Prepare reviews based on mode
   let pool = [];
-  if (mode === 'where') {
+  if (mode === 'owner-guess') {
+    // Use the game pool from overlap data (all reviews with text from both reviewers)
+    pool = shuffle(overlapData.game_pool);
+    totalRounds = Math.min(10, pool.length);
+    gameReviews = pool.slice(0, totalRounds);
+    showScreen('game-screen');
+    renderRound();
+    return;
+  } else if (mode === 'where') {
     pool = allReviews.filter(r => r.review_photos && r.review_photos.length > 0);
     totalRounds = Math.min(10, pool.length);
   } else {
@@ -501,6 +539,7 @@ function renderRound() {
   if (currentMode === 'swipe') renderSwipeRound(gs, review);
   else if (currentMode === 'rate') renderRateRound(gs, review);
   else if (currentMode === 'where') renderWhereRound(gs, review);
+  else if (currentMode === 'owner-guess') renderOwnerGuessRound(gs, review);
 }
 
 // ---- MODE 1: SWIPE IT ----
@@ -694,6 +733,70 @@ function answerWhere(idx, correctLabel) {
   banner.innerHTML = `
     ${isCorrect ? '&#10004; ¡CORRECTO!' : '&#10008; ¡BEBE!'}
     <div class="result-detail">${escapeHtml(review.place_name)}<br>${escapeHtml(review.address || '')}</div>
+  `;
+  gs.appendChild(banner);
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'next-btn';
+  nextBtn.textContent = currentRound + 1 >= totalRounds ? 'Ver Resultados' : 'Siguiente Ronda';
+  nextBtn.onclick = () => { currentRound++; renderRound(); };
+  gs.appendChild(nextBtn);
+}
+
+// ---- MODE 4: OWNER GUESS ----
+function renderOwnerGuessRound(container, review) {
+  const starsHtml = [1,2,3,4,5].map(n =>
+    `<span class="star ${n <= review.stars ? 'filled' : 'empty'}">&#9733;</span>`
+  ).join('');
+
+  container.innerHTML = `
+    <div class="round-info">RONDA ${currentRound + 1} / ${totalRounds}</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${(currentRound / totalRounds) * 100}%"></div></div>
+    <div class="game-card">
+      <img class="card-image" src="${escapeAttr(review.place_image || '')}" alt="Place" onerror="this.outerHTML='<div class=img-placeholder>&#127869;</div>'" crossorigin="anonymous" referrerpolicy="no-referrer">
+      <div class="card-body">
+        <div class="card-place-name">${escapeHtml(review.place_name)}</div>
+        <div class="card-address">${escapeHtml(review.address || '')}</div>
+        <div class="card-stars">${starsHtml}</div>
+        <div class="card-review">${escapeHtml(review.review_text || 'Sin texto')}</div>
+        <div class="card-prompt">&#129300; ¿QUIÉN ESCRIBIÓ ESTA RESEÑA?</div>
+      </div>
+    </div>
+    <div class="options" id="optionsContainer">
+      <button class="opt-btn" data-val="Javier">Javier Molina</button>
+      <button class="opt-btn" data-val="María">María Polo López</button>
+    </div>
+  `;
+  container.querySelectorAll('#optionsContainer .opt-btn').forEach(btn => {
+    btn.addEventListener('click', () => answerOwnerGuess(btn.dataset.val, review.reviewer));
+  });
+}
+
+function answerOwnerGuess(guess, correct) {
+  if (answered) return;
+  answered = true;
+  const isCorrect = guess === correct;
+  const btns = document.querySelectorAll('#optionsContainer .opt-btn');
+
+  btns.forEach(btn => {
+    btn.disabled = true;
+    if (btn.dataset.val === correct) btn.classList.add('correct');
+    if (btn.dataset.val === guess && !isCorrect) btn.classList.add('wrong');
+  });
+
+  if (!isCorrect) {
+    drinks++;
+    showDrinkOverlay();
+  } else {
+    score++;
+    showConfetti();
+  }
+  updateCounters();
+
+  const gs = document.getElementById('game-screen');
+  const banner = document.createElement('div');
+  banner.className = `result-banner ${isCorrect ? 'success' : 'fail'}`;
+  banner.innerHTML = `
+    ${isCorrect ? '&#10004; ¡CORRECTO!' : '&#10008; ¡BEBE! Era de ' + escapeHtml(correct)}
   `;
   gs.appendChild(banner);
   const nextBtn = document.createElement('button');

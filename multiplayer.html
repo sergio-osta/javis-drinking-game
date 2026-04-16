@@ -528,6 +528,7 @@ document.getElementById('themeToggle').addEventListener('click', () => {
 // STATE
 // ============================================
 let allReviews = [];
+let overlapData = null;
 let peer = null;
 let isHost = false;
 let roomCode = '';
@@ -560,9 +561,15 @@ let playerAnswered = false;
 // ============================================
 async function loadData() {
   try {
-    const res = await fetch('javier-reviews.json');
-    const data = await res.json();
+    const [javierRes, overlapRes] = await Promise.all([
+      fetch('javier-reviews.json'),
+      fetch('overlap-data.json').catch(() => null)
+    ]);
+    const data = await javierRes.json();
     allReviews = data.reviews || data;
+    if (overlapRes && overlapRes.ok) {
+      overlapData = await overlapRes.json();
+    }
   } catch (e) {
     console.error('Error cargando resenas:', e);
   }
@@ -1038,6 +1045,13 @@ function showModeSelect() {
         <div class="mode-name">El Tribunal de Javier</div>
         <div class="mode-desc">Resenas de 1 estrella. Un abogado defiende el restaurante. El jurado decide!</div>
       </div>
+      ${overlapData && overlapData.game_pool && overlapData.game_pool.length > 0 ? `
+      <div class="mode-card" onclick="startMultiplayerGame('owner-guess')">
+        <div class="mode-badge new">NUEVO</div>
+        <div class="mode-icon">&#129300;</div>
+        <div class="mode-name">Quien lo escribio?</div>
+        <div class="mode-desc">Lee la resena y adivina si es de Javier o de Maria. El mas rapido gana mas puntos!</div>
+      </div>` : ''}
     </div>
     <button class="big-btn secondary" style="max-width:300px;margin-top:20px;" onclick="renderLobby()">Volver al Lobby</button>
   `;
@@ -1094,6 +1108,10 @@ function startMultiplayerGame(mode) {
     pool = allReviews.filter(r => r.stars === 1 && r.review_text);
     totalRounds = Math.min(10, pool.length);
     gameReviews = shuffle(pool).slice(0, totalRounds);
+  } else if (mode === 'owner-guess') {
+    pool = overlapData ? shuffle(overlapData.game_pool) : [];
+    totalRounds = Math.min(10, pool.length);
+    gameReviews = pool.slice(0, totalRounds);
   }
 
   // Broadcast game start
@@ -1233,6 +1251,18 @@ function hostSendRound() {
       reviewSnippet: snippet,
       correctAnswer: review.stars
     };
+  } else if (gameMode === 'owner-guess') {
+    const review = gameReviews[currentRound];
+    const starsHtml = [1,2,3,4,5].map(n => n <= review.stars ? '&#11088;' : '').join('');
+    roundData = {
+      type: 'round', mode: 'owner-guess', roundNum: currentRound, totalRounds,
+      image: review.place_image,
+      placeName: review.place_name,
+      address: review.address || '',
+      stars: review.stars,
+      reviewText: review.review_text || 'Sin texto',
+      correctAnswer: review.reviewer
+    };
   }
 
   // Store round data for host resolution
@@ -1338,6 +1368,26 @@ function renderHostRound(data) {
       </div>
       <div class="star-picker" id="starPicker">
         ${[1,2,3,4,5].map(n => `<button class="star-pick" onclick="hostAnswer(${n})">${n} &#11088;</button>`).join('')}
+      </div>
+      <div class="answer-tracker" id="answerTracker">${renderAnswerDots(0, activeCount)}</div>
+    `;
+  } else if (data.mode === 'owner-guess') {
+    const starsHtml = [1,2,3,4,5].map(n => n <= data.stars ? '&#11088;' : '').join('');
+    gs.innerHTML = `
+      <div class="round-info">RONDA ${data.roundNum + 1} / ${data.totalRounds} &middot; QUIEN LO ESCRIBIO?</div>
+      <div class="game-card">
+        <img class="card-image" src="${escapeAttr(data.image || '')}" alt="Place" ${imgErrorHandler('&#127869;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+        <div class="card-body">
+          <div class="card-place-name">${escapeHtml(data.placeName)}</div>
+          <div class="card-address">${escapeHtml(data.address)}</div>
+          <div class="card-stars">${starsHtml}</div>
+          <div class="card-review">${escapeHtml(data.reviewText)}</div>
+          <div class="card-prompt">&#129300; QUIEN ESCRIBIO ESTA RESENA?</div>
+        </div>
+      </div>
+      <div class="options" id="optionsContainer">
+        <button class="opt-btn" onclick="hostAnswer('Javier')">Javier Molina</button>
+        <button class="opt-btn" onclick="hostAnswer('Mar\u00eda')">Mar\u00eda Polo L\u00f3pez</button>
       </div>
       <div class="answer-tracker" id="answerTracker">${renderAnswerDots(0, activeCount)}</div>
     `;
@@ -1468,6 +1518,26 @@ function renderPlayerRound(data) {
       </div>
       <div class="answer-tracker" id="answerTracker"></div>
     `;
+  } else if (data.mode === 'owner-guess') {
+    const starsHtml = [1,2,3,4,5].map(n => n <= data.stars ? '&#11088;' : '').join('');
+    gs.innerHTML = `
+      <div class="round-info">RONDA ${data.roundNum + 1} / ${data.totalRounds} &middot; QUIEN LO ESCRIBIO?</div>
+      <div class="game-card">
+        <img class="card-image" src="${escapeAttr(data.image || '')}" alt="Place" ${imgErrorHandler('&#127869;')} crossorigin="anonymous" referrerpolicy="no-referrer">
+        <div class="card-body">
+          <div class="card-place-name">${escapeHtml(data.placeName)}</div>
+          <div class="card-address">${escapeHtml(data.address)}</div>
+          <div class="card-stars">${starsHtml}</div>
+          <div class="card-review">${escapeHtml(data.reviewText)}</div>
+          <div class="card-prompt">&#129300; QUIEN ESCRIBIO ESTA RESENA?</div>
+        </div>
+      </div>
+      <div class="options" id="optionsContainer">
+        <button class="opt-btn" onclick="playerSubmitAnswer('Javier')">Javier Molina</button>
+        <button class="opt-btn" onclick="playerSubmitAnswer('Mar\u00eda')">Mar\u00eda Polo L\u00f3pez</button>
+      </div>
+      <div class="answer-tracker" id="answerTracker"></div>
+    `;
   }
 }
 
@@ -1515,6 +1585,7 @@ function resolveRound() {
   else if (gameMode === 'where') resolveWhereRound();
   else if (gameMode === 'higher-lower') resolveHigherLowerRound();
   else if (gameMode === 'closest') resolveClosestRound();
+  else if (gameMode === 'owner-guess') resolveOwnerGuessRound();
 }
 
 function resolveSwipeRound() {
@@ -1734,6 +1805,50 @@ function resolveClosestRound() {
   renderHostReveal(revealData);
 }
 
+function resolveOwnerGuessRound() {
+  const review = gameReviews[currentRound];
+  const correct = review.reviewer;
+  const results = {};
+
+  let firstCorrectTime = Infinity;
+  let firstCorrectPeer = null;
+  for (const [pid, ans] of Object.entries(roundAnswers)) {
+    if (ans === correct && roundTimestamps[pid] < firstCorrectTime) {
+      firstCorrectTime = roundTimestamps[pid];
+      firstCorrectPeer = pid;
+    }
+  }
+
+  hostPlayers.forEach(p => {
+    const ans = roundAnswers[p.peerId];
+    if (ans === correct) {
+      if (p.peerId === firstCorrectPeer) {
+        p.score += 2;
+        results[p.peerId] = { correct: true, points: 2, first: true };
+      } else {
+        p.score += 1;
+        results[p.peerId] = { correct: true, points: 1, first: false };
+      }
+    } else {
+      p.drinks += 1;
+      results[p.peerId] = { correct: false, drink: true };
+    }
+  });
+
+  const revealData = {
+    type: 'reveal', mode: 'owner-guess',
+    correctAnswer: correct,
+    placeName: review.place_name,
+    address: review.address,
+    results,
+    roundNum: currentRound,
+    totalRounds
+  };
+
+  broadcast(revealData);
+  renderHostReveal(revealData);
+}
+
 // ============================================
 // REVEAL RENDERING (HOST)
 // ============================================
@@ -1787,6 +1902,8 @@ function renderHostReveal(data) {
     const stars = '&#11088;'.repeat(data.correctAnswer);
     infoHtml = `<div style="font-weight:700;">${escapeHtml(data.placeName)}: ${stars} (${data.correctAnswer}/5)</div>
       <div style="color:var(--muted);font-size:0.8rem;font-style:italic;margin-top:4px;">"${escapeHtml(data.reviewText || '')}"</div>`;
+  } else if (data.mode === 'owner-guess') {
+    infoHtml = `<div style="font-weight:700;">&#10004; ${escapeHtml(data.correctAnswer)}</div><div style="color:var(--muted);font-size:0.8rem;">${escapeHtml(data.placeName)} &middot; ${escapeHtml(data.address || '')}</div>`;
   }
 
   // Personal result overlay
@@ -1857,6 +1974,8 @@ function renderPlayerReveal(data) {
     if (data.tied) infoHtml += '<br><span style="color:var(--neon);">Empate!</span>';
   } else if (data.mode === 'closest') {
     infoHtml = `${escapeHtml(data.placeName)}: ${'&#11088;'.repeat(data.correctAnswer)} (${data.correctAnswer}/5)`;
+  } else if (data.mode === 'owner-guess') {
+    infoHtml = `<strong>${escapeHtml(data.correctAnswer)}</strong><br><span style="font-size:0.8rem;color:var(--muted);">${escapeHtml(data.placeName)}</span>`;
   }
 
   const isCorrect = myResult.correct || myResult.closest || myResult.safe;
