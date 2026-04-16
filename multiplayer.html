@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="italia">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -451,29 +451,41 @@
   .italia .mode-card:hover, .italia .mode-card:active { box-shadow: 0 0 30px rgba(39,174,96,0.2); }
   .italia .next-btn, .italia .lobby-btn { box-shadow: 0 4px 24px rgba(231,76,60,0.3); }
 
-  /* ---- THEME TOGGLE ---- */
-  .theme-toggle {
-    position: fixed; bottom: 20px; right: 20px; z-index: 150;
-    width: 56px; height: 56px; border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.1);
-    background: var(--card); cursor: pointer;
-    font-size: 1.6rem; display: flex; align-items: center; justify-content: center;
-    transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  /* ---- SETTINGS MENU ---- */
+  .settings-wrap { position: relative; }
+  .settings-btn {
+    width: 40px; height: 40px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04); color: var(--text); cursor: pointer; font-size: 1.1rem;
   }
-  .theme-toggle:hover { transform: scale(1.1); border-color: var(--accent); }
-  .theme-toggle:active { transform: scale(0.95); }
+  .settings-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 220px; padding: 10px;
+    background: rgba(22,22,42,0.96); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.35); backdrop-filter: blur(16px); display: none; z-index: 180;
+  }
+  .italia .settings-menu { background: rgba(26,46,22,0.96); }
+  .settings-menu.open { display: block; }
+  .settings-item {
+    width: 100%; padding: 10px 12px; border: 0; background: transparent; color: var(--text);
+    text-align: left; border-radius: 10px; cursor: pointer; font: inherit; font-size: 0.92rem;
+  }
+  .settings-item:hover { background: rgba(255,255,255,0.06); }
+  .settings-item small { display: block; color: var(--muted); font-size: 0.72rem; margin-top: 2px; }
 </style>
 </head>
 <body>
 
-<!-- THEME TOGGLE -->
-<button class="theme-toggle" id="themeToggle" title="Tema Italia">🍕</button>
-
 <!-- HEADER -->
 <div class="header" id="header">
-  <div class="logo" onclick="location.reload()">REVIEW ROULETTE</div>
+  <div class="logo" onclick="goAppHome()">REVIEW ROULETTE</div>
   <div class="header-info" id="headerInfo"></div>
+  <div class="settings-wrap">
+    <button class="settings-btn" id="settingsBtn" title="Ajustes">⚙️</button>
+    <div class="settings-menu" id="settingsMenu">
+      <button class="settings-item" onclick="toggleTheme()">Cambiar tema<small id="themeMenuHint">Pasar a tema neon</small></button>
+      <button class="settings-item" onclick="goAppHome()">Volver al inicio<small>Salir de la sala actual</small></button>
+      <button class="settings-item" onclick="switchExperience()">Ir a un jugador<small>Cambiar de app</small></button>
+    </div>
+  </div>
 </div>
 
 <!-- LANDING SCREEN -->
@@ -514,15 +526,27 @@
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
-// ---- THEME TOGGLE ----
-let isItalian = false;
+// ---- SETTINGS / THEME ----
+let isItalian = true;
 function getDrinkEmoji() { return isItalian ? '🍹' : '🍺'; }
-
-document.getElementById('themeToggle').addEventListener('click', () => {
-  isItalian = !isItalian;
+function applyTheme() {
   document.documentElement.classList.toggle('italia', isItalian);
-  document.getElementById('themeToggle').textContent = isItalian ? '🍺' : '🍕';
+  const hint = document.getElementById('themeMenuHint');
+  if (hint) hint.textContent = isItalian ? 'Pasar a tema neon' : 'Pasar a tema Italia';
+}
+function closeSettingsMenu() { document.getElementById('settingsMenu').classList.remove('open'); }
+function toggleTheme() { isItalian = !isItalian; applyTheme(); closeSettingsMenu(); }
+function switchExperience() { window.location.href = 'index.html'; }
+document.getElementById('settingsBtn').addEventListener('click', (event) => {
+  event.stopPropagation();
+  document.getElementById('settingsMenu').classList.toggle('open');
 });
+document.addEventListener('click', (event) => {
+  const menu = document.getElementById('settingsMenu');
+  const btn = document.getElementById('settingsBtn');
+  if (!menu.contains(event.target) && !btn.contains(event.target)) closeSettingsMenu();
+});
+applyTheme();
 
 // ============================================
 // STATE
@@ -999,6 +1023,7 @@ function renderPlayerLobby(players) {
 function showModeSelect() {
   showScreen('mode-screen');
   const el = document.getElementById('mode-screen');
+  const hasOverlapMode = overlapData && overlapData.game_pool && overlapData.game_pool.length > 0;
   el.innerHTML = `
     <div class="mode-title">Elige el Juego</div>
     <div class="mode-subtitle">${hostPlayers.filter(p=>!p.disconnected).length} jugadores conectados</div>
@@ -1045,7 +1070,7 @@ function showModeSelect() {
         <div class="mode-name">El Tribunal de Javier</div>
         <div class="mode-desc">Resenas de 1 estrella. Un abogado defiende el restaurante. El jurado decide!</div>
       </div>
-      ${overlapData && overlapData.game_pool && overlapData.game_pool.length > 0 ? `
+      ${hasOverlapMode ? `
       <div class="mode-card" onclick="startMultiplayerGame('owner-guess')">
         <div class="mode-badge new">NUEVO</div>
         <div class="mode-icon">&#129300;</div>
@@ -1061,6 +1086,8 @@ function showModeSelect() {
 // GAME START (HOST)
 // ============================================
 function startMultiplayerGame(mode) {
+  if (mode === 'owner-guess' && !(overlapData && overlapData.game_pool && overlapData.game_pool.length > 0)) return;
+  closeSettingsMenu();
   gameMode = mode;
   currentRound = 0;
   roundAnswers = {};
@@ -2451,7 +2478,8 @@ function renderScoreboardScreen(data) {
   const modeNames = {
     'swipe': 'Swipe It', 'rate': 'Rate It', 'where': 'Donde Estaba?',
     'higher-lower': 'Mas o Menos', 'closest': 'La Escala de Javier',
-    'bingo': 'Javier Bingo', 'tribunal': 'El Tribunal de Javier'
+    'bingo': 'Javier Bingo', 'tribunal': 'El Tribunal de Javier',
+    'owner-guess': 'Quien lo escribio?'
   };
 
   const rankEmojis = ['&#129351;', '&#129352;', '&#129353;'];
@@ -2494,6 +2522,33 @@ function renderPlayerScoreboard(data) {
 function backToLobby() {
   broadcast({ type: 'return-lobby', players: hostPlayers.map(p => ({ name: p.name, score: p.score, drinks: p.drinks, disconnected: p.disconnected, peerId: p.peerId })) });
   renderLobby();
+}
+
+function goAppHome() {
+  closeSettingsMenu();
+  try { if (hostConn) hostConn.close(); } catch (e) {}
+  Object.values(connections).forEach(conn => { try { conn.close(); } catch (e) {} });
+  try { if (peer) peer.destroy(); } catch (e) {}
+  peer = null;
+  hostConn = null;
+  connections = {};
+  isHost = false;
+  roomCode = '';
+  myPeerId = '';
+  hostPlayers = [];
+  gameMode = '';
+  gameReviews = [];
+  currentRound = 0;
+  roundAnswers = {};
+  roundTimestamps = {};
+  roundActive = false;
+  myScore = 0;
+  myDrinks = 0;
+  myBingoCard = null;
+  playerAnswered = false;
+  document.getElementById('headerInfo').innerHTML = '';
+  showScreen('landing-screen');
+  setStatus('');
 }
 
 // ============================================
