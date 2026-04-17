@@ -690,16 +690,9 @@ function createPeer(id) {
       config: {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:stun3.l.google.com:19302' },
-          { urls: 'stun:stun4.l.google.com:19302' },
-          { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+          { urls: 'stun:stun1.l.google.com:19302' }
         ]
-      },
-      debug: 2
+      }
     };
     const p = id ? new Peer(id, opts) : new Peer(opts);
     p.on('open', (id) => {
@@ -889,7 +882,7 @@ async function joinRoom() {
   console.log('[JOIN] Connecting to host:', targetId);
 
   try {
-    hostConn = peer.connect(targetId, { reliable: true, serialization: 'json' });
+    hostConn = peer.connect(targetId, { reliable: true });
   } catch(e) {
     console.error('[JOIN] Connect call failed:', e);
     setStatus('No se pudo conectar a la sala', true);
