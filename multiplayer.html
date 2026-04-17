@@ -691,25 +691,39 @@ function createPeer(id) {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun.relay.metered.ca:80' },
-          { urls: 'turn:global.relay.metered.ca:80', username: 'e8dd65e92f3dadd1b7e75c55', credential: '3ZDBoSsi+NsBLkJR' },
-          { urls: 'turn:global.relay.metered.ca:80?transport=tcp', username: 'e8dd65e92f3dadd1b7e75c55', credential: '3ZDBoSsi+NsBLkJR' },
-          { urls: 'turn:global.relay.metered.ca:443', username: 'e8dd65e92f3dadd1b7e75c55', credential: '3ZDBoSsi+NsBLkJR' },
-          { urls: 'turns:global.relay.metered.ca:443?transport=tcp', username: 'e8dd65e92f3dadd1b7e75c55', credential: '3ZDBoSsi+NsBLkJR' }
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:stun3.l.google.com:19302' },
+          { urls: 'stun:stun4.l.google.com:19302' },
+          { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
         ]
       },
-      debug: 1
+      debug: 2
     };
     const p = id ? new Peer(id, opts) : new Peer(opts);
-    p.on('open', () => resolve(p));
+    p.on('open', (id) => {
+      console.log('[PEER] Connected to signaling server, ID:', id);
+      resolve(p);
+    });
+    p.on('disconnected', () => {
+      console.warn('[PEER] Disconnected from signaling server, reconnecting...');
+      p.reconnect();
+    });
     p.on('error', (err) => {
-      console.error('Peer error:', err);
+      console.error('[PEER] Error:', err.type, err.message || err);
       if (err.type === 'unavailable-id') {
         reject(new Error('Sala ya existe. Intenta de nuevo.'));
       } else if (err.type === 'peer-unavailable') {
         reject(new Error('Sala no encontrada. Verifica el codigo.'));
+      } else if (err.type === 'network') {
+        reject(new Error('Error de red. Verifica tu conexion a internet.'));
+      } else if (err.type === 'server-error') {
+        reject(new Error('Servidor PeerJS no disponible. Intenta en unos minutos.'));
+      } else if (err.type === 'negotiation-failed' || (err.message && err.message.includes('Negotiation'))) {
+        reject(new Error('No se pudo establecer la conexion. Ambos jugadores deben tener buena conexion a internet. Intenta de nuevo.'));
       } else {
-        reject(err);
+        reject(new Error(err.type + ': ' + (err.message || 'Error desconocido')));
       }
     });
   });
@@ -752,12 +766,22 @@ async function createRoom() {
 
   // Listen for incoming connections
   peer.on('connection', (conn) => {
+    console.log('[HOST] Incoming connection from:', conn.peer);
     conn.on('open', () => {
-      // Wait for join message
+      console.log('[HOST] Connection open with:', conn.peer);
     });
-    conn.on('data', (data) => handleHostMessage(conn, data));
-    conn.on('close', () => handlePlayerDisconnect(conn.peer));
-    conn.on('error', () => handlePlayerDisconnect(conn.peer));
+    conn.on('data', (data) => {
+      console.log('[HOST] Received from', conn.peer, ':', data.type);
+      handleHostMessage(conn, data);
+    });
+    conn.on('close', () => {
+      console.warn('[HOST] Player disconnected:', conn.peer);
+      handlePlayerDisconnect(conn.peer);
+    });
+    conn.on('error', (err) => {
+      console.error('[HOST] Player connection error:', conn.peer, err);
+      handlePlayerDisconnect(conn.peer);
+    });
   });
 
   updateHeaderInfo();
@@ -861,32 +885,43 @@ async function joinRoom() {
     return;
   }
 
+  const targetId = PEER_PREFIX + roomCode;
+  console.log('[JOIN] Connecting to host:', targetId);
+
   try {
-    hostConn = peer.connect(PEER_PREFIX + roomCode, { reliable: true });
+    hostConn = peer.connect(targetId, { reliable: true, serialization: 'json' });
   } catch(e) {
+    console.error('[JOIN] Connect call failed:', e);
     setStatus('No se pudo conectar a la sala', true);
     document.getElementById('joinRoomBtn').disabled = false;
     return;
   }
 
   const timeout = setTimeout(() => {
-    setStatus('Sala no encontrada o sin respuesta. Verifica que el host tenga la sala abierta.', true);
+    console.warn('[JOIN] Timeout after 15s');
+    setStatus('Sala no encontrada o sin respuesta. Verifica que el host tenga la sala abierta y ambos tengan internet.', true);
     document.getElementById('joinRoomBtn').disabled = false;
   }, 15000);
 
   hostConn.on('open', () => {
+    console.log('[JOIN] Connection established, sending join message');
     clearTimeout(timeout);
     hostConn.send({ type: 'join', name: myName });
   });
 
-  hostConn.on('data', (data) => handlePlayerMessage(data));
+  hostConn.on('data', (data) => {
+    console.log('[JOIN] Received:', data.type);
+    handlePlayerMessage(data);
+  });
 
   hostConn.on('close', () => {
+    console.warn('[JOIN] Connection to host closed');
     setStatus('Conexion perdida con el host', true);
   });
   hostConn.on('error', (err) => {
+    console.error('[JOIN] Connection error:', err.type, err.message || err);
     clearTimeout(timeout);
-    setStatus('Error: ' + err.message, true);
+    setStatus('Error de conexion: ' + (err.message || err.type || 'desconocido'), true);
     document.getElementById('joinRoomBtn').disabled = false;
   });
 }
